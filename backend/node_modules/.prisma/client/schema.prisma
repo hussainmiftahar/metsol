@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STUDENT)
+  studentId    String?
+  department   String?
+  phone        String?
+  createdAt    DateTime @default(now())
+
+  courses     CourseEnrollment[]
+  assignments Assignment[]
+  submissions Submission[]
+  payments    Payment[]
+  attendance  Attendance[]
+  notices     Notice[]           @relation("NoticeAuthor")
+}
+
+model Course {
+  id         String  @id @default(cuid())
+  code       String
+  title      String
+  department String?
+  credits    Int     @default(3)
+  teacherId  String?
+
+  enrollments CourseEnrollment[]
+  assignments Assignment[]
+}
+
+model CourseEnrollment {
+  id       String @id @default(cuid())
+  userId   String
+  courseId String
+  semester String
+  status   String @default("ENROLLED")
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId, semester])
+}
+
+model Assignment {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  dueAt       DateTime?
+  courseId    String
+  teacherId   String
+
+  course      Course       @relation(fields: [courseId], references: [id])
+  submissions Submission[]
+  user        User?        @relation(fields: [userId], references: [id])
+  userId      String?
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  studentId    String
+  content      String?
+  fileUrl      String?
+  submittedAt  DateTime @default(now())
+  grade        Float?
+  feedback     String?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  studentId String
+  amount    Decimal       @db.Decimal(10, 2)
+  currency  String        @default("BDT")
+  purpose   String
+  status    PaymentStatus @default(PENDING)
+  provider  String
+  reference String?
+  createdAt DateTime      @default(now())
+  paidAt    DateTime?
+
+  student User @relation(fields: [studentId], references: [id])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  date      DateTime
+  status    String
+
+  student User @relation(fields: [studentId], references: [id])
+}
+
+model Notice {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  audience  String   @default("ALL")
+  createdAt DateTime @default(now())
+  authorId  String?
+
+  author User? @relation("NoticeAuthor", fields: [authorId], references: [id])
+}
+
+model Result {
+  id          String @id @default(cuid())
+  studentId   String
+  courseCode  String
+  courseTitle String
+  semester    String
+  grade       String
+  gradePoint  Float
+  credits     Int
+}
+
+model Resource {
+  id         String  @id @default(cuid())
+  title      String
+  type       String
+  url        String?
+  subject    String?
+  uploadedBy String?
+}
+
+model Question {
+  id          String  @id @default(cuid())
+  subject     String
+  question    String
+  options     Json?
+  answer      String?
+  explanation String?
+}
+
+model BusLocation {
+  id        String   @id @default(cuid())
+  busName   String
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @updatedAt
+}
