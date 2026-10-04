@@ -3,10 +3,16 @@ import { createRoot } from "react-dom/client";
 import "./style.css";
 
 const courses = [
-  { code: "CSE 310", title: "Artificial Intelligence", teacher: "Dr. Rahman", credits: 3, progress: 72 },
-  { code: "CSE 320", title: "Database Management", teacher: "Prof. Karim", credits: 3, progress: 84 },
-  { code: "CSE 330", title: "Data Visualization", teacher: "Dr. Ahmed", credits: 3, progress: 65 },
-  { code: "CSE 340", title: "Software Engineering", teacher: "Prof. Hasan", credits: 3, progress: 91 },
+  { code: "CSE 310", title: "Artificial Intelligence", teacher: "Dr. Rahman", department: "Department of Computer Science & Engineering", credits: 3, progress: 72 },
+  { code: "CSE 320", title: "Database Management", teacher: "Prof. Karim", department: "Department of Computer Science & Engineering", credits: 3, progress: 84 },
+  { code: "CSE 330", title: "Data Visualization", teacher: "Dr. Ahmed", department: "Department of Computer Science & Engineering", credits: 3, progress: 65 },
+  { code: "CSE 340", title: "Software Engineering", teacher: "Prof. Hasan", department: "Department of Computer Science & Engineering", credits: 3, progress: 91 },
+];
+
+const teachers = [
+  ...courses.map(({ teacher, department }) => ({ name: teacher, department })),
+  { name: "Tawsifur Rahman", department: "Department of Electrical & Electronics Engineering" },
+  { name: "Zerin Tasnim Ahmed Mahi", department: "Department of Business Administration" },
 ];
 
 const assignments = [
@@ -310,12 +316,280 @@ function Courses() {
 }
 
 function Assignments() {
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [coverType, setCoverType] = useState(null);
+  const [form, setForm] = useState({
+    name: "",
+    studentId: "",
+    section: "",
+    department: "",
+    batch: "",
+    courseCode: courses[0].code,
+    teacherName: "",
+    teacherDepartment: "",
+  });
+  const [groupMembers, setGroupMembers] = useState([{ name: "", studentId: "" }]);
+
+  const selectedCourse = courses.find((course) => course.code === form.courseCode);
+  const teacherNames = [...new Set(teachers.map((teacher) => teacher.name))];
+  const matchingTeachers = teachers.filter((teacher) => teacher.name === form.teacherName);
+  const teacherDepartmentChoices = [...new Set(matchingTeachers.map((teacher) => teacher.department))];
+  const isGroup = coverType === "group";
+  const members = isGroup ? groupMembers : [form];
+  const membersAreComplete =
+    members.length > 0 &&
+    members.every((member) => member.name.trim() && member.studentId.trim()) &&
+    (!isGroup || members.length >= 2);
+  const canPrint =
+    membersAreComplete &&
+    form.section.trim() &&
+    form.department.trim() &&
+    form.batch.trim() &&
+    selectedCourse &&
+    form.teacherName &&
+    form.teacherDepartment;
+
+  function updateForm(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectTeacher(name) {
+    const departments = [...new Set(teachers.filter((teacher) => teacher.name === name).map((teacher) => teacher.department))];
+    updateForm("teacherName", name);
+    updateForm("teacherDepartment", departments.length === 1 ? departments[0] : "");
+  }
+
+  function openAssignment(assignment) {
+    const course = courses.find((item) => item.title === assignment.course);
+    const courseTeacherDepartments = [...new Set(teachers.filter((teacher) => teacher.name === course?.teacher).map((teacher) => teacher.department))];
+    setSelectedAssignment(assignment);
+    setCoverType(null);
+    setForm((current) => ({
+      ...current,
+      courseCode: course?.code || current.courseCode,
+      teacherName: course?.teacher || current.teacherName,
+      teacherDepartment: courseTeacherDepartments.length === 1 ? courseTeacherDepartments[0] : "",
+    }));
+  }
+
+  function closeAssignment() {
+    setSelectedAssignment(null);
+    setCoverType(null);
+  }
+
+  if (selectedAssignment && !coverType) {
+    return (
+      <div className="card assignment-detail">
+        <button className="back-button" onClick={closeAssignment}>← Back to assignments</button>
+        <div className="page-intro">
+          <span className="eyebrow assignment-eyebrow">ASSIGNMENT</span>
+          <h2>{selectedAssignment.title}</h2>
+          <p>{selectedAssignment.course} · Due {selectedAssignment.due}</p>
+        </div>
+        <h3 className="cover-choice-heading">Choose a cover page</h3>
+        <p className="cover-choice-copy">Select the cover page format you want to prepare.</p>
+        <div className="cover-choice-grid">
+          <button className="cover-choice" onClick={() => setCoverType("individual")}>
+            <span className="cover-choice-icon">👤</span>
+            <strong>Individual cover page</strong>
+            <span>Prepare a cover page for one student.</span>
+          </button>
+          <button className="cover-choice" onClick={() => setCoverType("group")}>
+            <span className="cover-choice-icon">👥</span>
+            <strong>Group cover page</strong>
+            <span>Add the names and IDs of your group members.</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedAssignment && coverType) {
+    return (
+      <div className="cover-workspace">
+        <section className="card cover-form-card">
+          <button className="back-button" onClick={() => setCoverType(null)}>← Choose cover type</button>
+          <div className="page-intro">
+            <span className="eyebrow assignment-eyebrow">{isGroup ? "GROUP" : "INDIVIDUAL"} COVER PAGE</span>
+            <h2>Enter submission details</h2>
+            <p>Complete the details below. The submission date is added automatically.</p>
+          </div>
+
+          <div className="cover-form">
+            {isGroup ? (
+              <div className="cover-field full-width">
+                <div className="group-member-heading">
+                  <span>Group members</span>
+                  <button
+                    type="button"
+                    className="add-member-button"
+                    onClick={() => setGroupMembers((current) => [...current, { name: "", studentId: "" }])}
+                  >
+                    + Add member
+                  </button>
+                </div>
+                {groupMembers.map((member, index) => (
+                  <div className="group-member-fields" key={index}>
+                    <label>
+                      Name
+                      <input
+                        required
+                        value={member.name}
+                        onChange={(event) => setGroupMembers((current) =>
+                          current.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item)
+                        )}
+                        placeholder={`Member ${index + 1} name`}
+                      />
+                    </label>
+                    <label>
+                      Student ID
+                      <input
+                        required
+                        value={member.studentId}
+                        onChange={(event) => setGroupMembers((current) =>
+                          current.map((item, itemIndex) => itemIndex === index ? { ...item, studentId: event.target.value } : item)
+                        )}
+                        placeholder="Enter student ID"
+                      />
+                    </label>
+                    {groupMembers.length > 1 && (
+                      <button
+                        type="button"
+                        className="remove-member-button"
+                        aria-label={`Remove member ${index + 1}`}
+                        onClick={() => setGroupMembers((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                <label>
+                  Name
+                  <input required value={form.name} onChange={(event) => updateForm("name", event.target.value)} placeholder="Enter your name" />
+                </label>
+                <label>
+                  Student ID
+                  <input required value={form.studentId} onChange={(event) => updateForm("studentId", event.target.value)} placeholder="Enter your student ID" />
+                </label>
+              </>
+            )}
+
+            <label>
+              Section
+              <input required value={form.section} onChange={(event) => updateForm("section", event.target.value)} placeholder="Enter your section" />
+            </label>
+            <label>
+              Department
+              <input required value={form.department} onChange={(event) => updateForm("department", event.target.value)} placeholder="Enter your department" />
+            </label>
+            <label>
+              Batch
+              <input required value={form.batch} onChange={(event) => updateForm("batch", event.target.value)} placeholder="Enter your batch" />
+            </label>
+            <label>
+              Course
+              <select
+                required
+                value={form.courseCode}
+                onChange={(event) => {
+                  const course = courses.find((item) => item.code === event.target.value);
+                  const departments = [...new Set(teachers.filter((teacher) => teacher.name === course?.teacher).map((teacher) => teacher.department))];
+                  setForm((current) => ({
+                    ...current,
+                    courseCode: event.target.value,
+                    teacherName: course?.teacher || current.teacherName,
+                    teacherDepartment: departments.length === 1 ? departments[0] : "",
+                  }));
+                }}
+              >
+                {courses.map((course) => (
+                  <option key={course.code} value={course.code}>{course.title} ({course.code})</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Teacher name
+              <select required value={form.teacherName} onChange={(event) => selectTeacher(event.target.value)}>
+                <option value="">Select a teacher</option>
+                {teacherNames.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </label>
+            {teacherDepartmentChoices.length > 1 ? (
+              <label>
+                Teacher department
+                <select required value={form.teacherDepartment} onChange={(event) => updateForm("teacherDepartment", event.target.value)}>
+                  <option value="">Select the teacher's department</option>
+                  {teacherDepartmentChoices.map((department) => <option key={department} value={department}>{department}</option>)}
+                </select>
+              </label>
+            ) : (
+              <label>
+                Teacher department
+                <input readOnly value={form.teacherDepartment} placeholder="Automatically added when you select a teacher" />
+              </label>
+            )}
+          </div>
+
+          <div className="cover-form-actions">
+            <span>Submission date: {new Date().toLocaleDateString("en-GB")}</span>
+            <button className="primary-button" disabled={!canPrint} onClick={() => window.print()}>
+              Print / Save as PDF
+            </button>
+          </div>
+          {!canPrint && <p className="form-hint">Fill in all required details{isGroup ? " and add at least two group members" : ""} to print the cover page.</p>}
+        </section>
+
+        <section className="cover-preview-panel">
+          <div className="cover-preview-heading">
+            <div>
+              <h3>Cover page preview</h3>
+              <span>Print-ready US Letter layout</span>
+            </div>
+          </div>
+          <article className="cover-page" id="assignment-cover">
+            <img className="cover-logo" src="/university-logo.png" alt="Metropolitan University" />
+            <div className="cover-course-block">
+              <p><strong>Course Name:</strong> {selectedCourse?.title || " "}</p>
+              <p><strong>Course Code:</strong> {selectedCourse?.code || " "}</p>
+              <p><strong>Assignment on:</strong> {selectedAssignment.title}</p>
+            </div>
+            <div className="cover-submission-block">
+              <strong>Submitted to</strong>
+              <p>{form.teacherName || " "}</p>
+              <p>{form.teacherDepartment || " "}</p>
+              <p>Metropolitan University, Sylhet</p>
+            </div>
+            <div className="cover-submission-block submitted-by">
+              <strong>Submitted by</strong>
+              {members.map((member, index) => (
+                <p key={index}>{member.name || " "} {isGroup && member.studentId ? `(ID: ${member.studentId})` : ""}</p>
+              ))}
+              {!isGroup && <p>ID: {form.studentId || " "}</p>}
+              <p>Batch: {form.batch || " "}</p>
+              <p>Section: {form.section || " "}</p>
+              <p>{form.department || " "}</p>
+              <p>Metropolitan University, Sylhet</p>
+            </div>
+            <div className="cover-date-block">
+              <strong>Date of Submission</strong>
+              <p>{new Date().toLocaleDateString("en-GB")}</p>
+            </div>
+          </article>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-header">
         <div>
           <h3>Assignments</h3>
-          <span>Track your coursework</span>
+          <span>Open an assignment to prepare its cover page</span>
         </div>
       </div>
 
@@ -332,9 +606,10 @@ function Assignments() {
             <strong>{a.title}</strong>
             <span>{a.course}</span>
             <span>{a.due}</span>
-            <span className={a.status === "Submitted" ? "badge success" : "badge warning"}>
-              {a.status}
-            </span>
+            <div className="assignment-row-actions">
+              <span className={a.status === "Submitted" ? "badge success" : "badge warning"}>{a.status}</span>
+              <button className="open-assignment-button" onClick={() => openAssignment(a)}>Open assignment →</button>
+            </div>
           </div>
         ))}
       </div>

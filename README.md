@@ -48,7 +48,7 @@ Change demo passwords and JWT_SECRET before deployment.
 - Email/SMS/push notifications: configure a provider before production.
 
 ## Included modules
-Dashboard, teacher directory, courses/registration, results/CGPA, class & exam routine, assignments, attendance, academic calendar, notices, transcript, EduAI, PDF upload/summary/Q&A scaffolding, study hub, question bank, AI question generation, cover maker, study planner, progress, notifications, transport, hostel/library information, digital student ID, fee/payment history, student helpdesk, teacher workspace and admin management.
+Dashboard, teacher directory, courses/registration, results/CGPA, class & exam routine, assignments with individual/group cover-page preview and print-to-PDF, attendance, academic calendar, notices, transcript, EduAI, PDF upload/summary/Q&A scaffolding, study hub, question bank, AI question generation, study planner, progress, notifications, transport, hostel/library information, digital student ID, fee/payment history, student helpdesk, teacher workspace and admin management.
 
 ## Production checklist
 Configure HTTPS, strong secrets, database backups, rate limiting, CORS allowlist, email verification/password reset, audit logs, gateway signature verification, privacy/retention policy, and real GPS/AI/payment providers. Review authorization rules and institutional requirements before handling real student records.
