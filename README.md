@@ -13,26 +13,26 @@ Modern, multilingual university portal starter for Student, Teacher and Admin ro
 ## Requirements
 Node.js 20+, npm, PostgreSQL 14+.
 
-## Run locally (Mac / VS Code)
+## Run locally
 1. Install Node.js and PostgreSQL.
 2. Open this folder in VS Code.
-3. In Terminal:
+3. Create `backend/.env` by copying `.env.example` (`Copy-Item .env.example .env` in PowerShell, or `cp .env.example .env` in macOS/Linux), and configure the database connection.
+4. In a terminal, install and start the backend:
    ```bash
    cd backend
-   cp .env.example .env
-   npm install
+   npm ci
    npx prisma generate
    npx prisma migrate dev --name init
    npm run seed
    npm run dev
    ```
-4. Open a second terminal:
+5. Open a second terminal:
    ```bash
    cd frontend
-   npm install
+   npm ci
    npm run dev
    ```
-5. Visit http://localhost:5173
+6. Visit http://localhost:5173
 
 Demo login (after seeding):
 - Admin: admin@university.test / Admin123!
