@@ -112,7 +112,7 @@ function App() {
       </aside>
 
       <main className="main">
-        <header className="topbar">
+        <header className={active === "Bus Tracking" ? "topbar bus-topbar" : "topbar"}>
           <div>
             <h1>{active}</h1>
             <p>Welcome back! Here's what's happening today.</p>
@@ -532,28 +532,137 @@ function Quiz() {
 }
 
 function Bus() {
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const stops = [
+    { name: "Main Gate", x: 82, y: 274 },
+    { name: "Faculty Building", x: 300, y: 174 },
+    { name: "Library", x: 510, y: 98 },
+  ];
+
   return (
     <div className="bus-page">
-      <div className="card bus-info">
+      <div className="bus-page-heading">
         <div>
-          <span className="eyebrow">LIVE TRANSPORT</span>
-          <h2>University Bus Tracking</h2>
-          <p>Track university transportation in real time.</p>
+          <span className="bus-kicker">CAMPUS TRANSPORT</span>
+          <h1>Bus Tracker</h1>
+          <p>See your route, stops, and the demo vehicle location.</p>
         </div>
-
-        <div className="bus-status">
-          <span className="live-dot" />
-          LIVE
-        </div>
+        <button
+          className="bus-refresh"
+          onClick={() => setUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}
+        >
+          <span aria-hidden="true">↻</span>
+          Refresh
+        </button>
       </div>
 
-      <div className="fake-map">
-        <div className="map-grid" />
-        <div className="map-route">
-          <div className="bus-marker">🚌</div>
+      <section className="bus-summary" aria-label="Vehicle and route summary">
+        <div className="bus-summary-card">
+          <span className="bus-summary-icon">▣</span>
+          <div><small>VEHICLE</small><strong>Bus A1</strong></div>
         </div>
-        <div className="map-label start">University</div>
-        <div className="map-label end">Amberkhana</div>
+        <div className="bus-summary-card">
+          <span className="bus-summary-icon">⌘</span>
+          <div><small>ROUTE</small><strong>Academic Loop</strong></div>
+        </div>
+        <div className="bus-summary-card">
+          <span className="bus-summary-icon">⌖</span>
+          <div><small>STOPS</small><strong>3 stops</strong></div>
+        </div>
+        <div className="bus-summary-card">
+          <span className="feed-dot" />
+          <div><small>LOCATION FEED</small><strong>Demo preview</strong></div>
+        </div>
+      </section>
+
+      <div className="bus-content-grid">
+        <section className="bus-map-card">
+          <div className="bus-map-heading">
+            <div>
+              <span className="map-status"><span /> CAMPUS ROUTE</span>
+              <h2>Academic Loop</h2>
+            </div>
+            <span className="demo-gps">▥ &nbsp;DEMO GPS</span>
+          </div>
+          <div className="campus-map" role="img" aria-label="Illustrated Academic Loop map from Main Gate to Faculty Building to Library">
+            <svg viewBox="0 0 600 320" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="600" height="320" fill="#edf7f4" />
+              <path d="M0 46 C82 79 118 42 196 62 S333 103 421 53 S537 34 600 52 L600 0 0 0Z" fill="#dff2ef" />
+              <path d="M0 292 C99 252 143 304 246 276 S410 242 600 293 L600 320 0 320Z" fill="#e2f2ee" />
+              <g fill="#d9eae3" stroke="#d1e4dc">
+                <rect x="78" y="66" width="52" height="29" rx="8" />
+                <rect x="344" y="63" width="60" height="30" rx="8" />
+                <rect x="226" y="172" width="52" height="30" rx="8" />
+                <rect x="474" y="198" width="57" height="34" rx="9" />
+                <rect x="218" y="260" width="48" height="26" rx="8" />
+                <rect x="320" y="247" width="64" height="34" rx="9" />
+              </g>
+              <g fill="none" stroke="#fff" strokeWidth="17" strokeLinecap="round">
+                <path d="M38 -12 C92 72 52 132 110 202 S146 282 111 337" />
+                <path d="M434 -20 C393 58 458 108 425 185 S433 269 499 337" />
+                <path d="M-12 148 C91 127 156 157 238 135 S397 153 612 100" />
+                <path d="M-10 306 C105 272 166 310 257 285 S421 268 612 314" />
+              </g>
+              <g fill="none" stroke="#d9e7e4" strokeWidth="2" strokeDasharray="7 8">
+                <path d="M-12 148 C91 127 156 157 238 135 S397 153 612 100" />
+                <path d="M-10 306 C105 272 166 310 257 285 S421 268 612 314" />
+              </g>
+              <path d="M82 274 C150 243 220 211 300 174 S430 127 510 98" fill="none" stroke="#fff" strokeWidth="12" strokeLinecap="round" />
+              <path d="M82 274 C150 243 220 211 300 174 S430 127 510 98" fill="none" stroke="#159c91" strokeWidth="6" strokeLinecap="round" />
+              <path d="M300 174 C370 147 436 119 510 98" fill="none" stroke="#2387e8" strokeWidth="6" strokeLinecap="round" />
+              {stops.map((stop, index) => (
+                <g key={stop.name}>
+                  <circle cx={stop.x} cy={stop.y} r="8" fill="white" stroke="#1ba47f" strokeWidth="4" />
+                  <circle cx={stop.x} cy={stop.y} r="2.5" fill="#1ba47f" />
+                  {index < 2 && <text x={stop.x} y={stop.y + 25} textAnchor="middle" className="map-stop-label">{stop.name}</text>}
+                  {index === 2 && <text x={stop.x - 2} y={stop.y - 18} textAnchor="end" className="map-building-label">Library</text>}
+                </g>
+              ))}
+              <g transform="translate(340 158)">
+                <circle r="15" fill="#2387e8" opacity=".16" />
+                <circle r="11" fill="#fff" />
+                <circle r="9" fill="#2387e8" />
+                <text y="4" textAnchor="middle" className="map-bus-icon">▰</text>
+              </g>
+              <g transform="translate(555 45)">
+                <circle r="16" fill="#fff" />
+                <path d="M0 -10 4 2 0 0 -4 2Z" fill="#24516a" />
+                <text y="27" textAnchor="middle" className="map-north">N</text>
+              </g>
+            </svg>
+          </div>
+          <div className="map-caption">
+            <span><i className="legend-route" /> Academic Loop</span>
+            <span><i className="legend-bus" /> Demo vehicle position</span>
+            <span>Updated {updatedAt || "just now"}</span>
+          </div>
+        </section>
+
+        <aside className="bus-sidebar">
+          <section className="next-stop-card">
+            <span className="next-stop-icon">➤</span>
+            <small>NEXT STOP</small>
+            <h2>Library</h2>
+            <p>Bus A1 · Academic Loop</p>
+            <span className="demo-location-pill">Demo location only</span>
+          </section>
+
+          <section className="route-stops-card">
+            <div className="route-stops-heading">
+              <h3>Route stops</h3><span>3</span>
+            </div>
+            <ol className="route-stop-list">
+              {stops.map((stop, index) => (
+                <li className={index < 2 ? "stop-complete" : "stop-next"} key={stop.name}>
+                  <span className="stop-marker">{index < 2 ? "✓" : "3"}</span>
+                  <span>{stop.name}</span>
+                  {index === 2 && <small>Next</small>}
+                </li>
+              ))}
+            </ol>
+          </section>
+          <p className="bus-demo-note">This is a sample route preview, not live GPS tracking.</p>
+        </aside>
       </div>
     </div>
   );
