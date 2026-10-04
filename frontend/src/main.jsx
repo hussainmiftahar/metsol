@@ -54,6 +54,375 @@ const notices = [
   },
 ];
 
+const cseFaculty = [
+  { name: "Professor Dr. Kabir Hussain Chowdhury", designation: "Professor Emeritus" },
+  { name: "Professor Dr. Yousuf Mahbubul Islam", designation: "Professor" },
+  { name: "Professor Dr. Md. Nazrul Haque Chowdhury", designation: "Dean, School of Science & Technology" },
+  { name: "Professor Choudhury M. Mukammel Wahid", designation: "Professor" },
+  { name: "Md. Mahfujul Hasan", designation: "Associate Professor · Head, Dept. of CSE" },
+  { name: "Md. Shamihul Islam Khan Limon", designation: "Assistant Professor" },
+  { name: "Nabila Jannat Rifa", designation: "Lecturer" },
+  { name: "Rishad Amin Pulok", designation: "Lecturer" },
+  { name: "Salma Akther", designation: "Lecturer" },
+  { name: "Abu Jafar Md Jakaria", designation: "Lecturer" },
+  { name: "Mayami Das Purkayastha Purba", designation: "Lecturer" },
+  { name: "Bushra Azmat Hussain", designation: "Lecturer" },
+  { name: "Ruma Das", designation: "Lecturer" },
+  { name: "Md. Fahmidur Rahman Sakib", designation: "Lecturer" },
+  { name: "Shrabanti Chowdhury", designation: "Lecturer" },
+  { name: "Samia Rahman Rima", designation: "Lecturer" },
+  { name: "Ruhul Amin", designation: "Lecturer" },
+  { name: "Tajbin Jahan", designation: "Lecturer" },
+  { name: "Aisha Hayder Chowdhury", designation: "Lecturer" },
+  { name: "Abdullah Al Masud", designation: "Lecturer" },
+  { name: "Golam Mostofa Naeem", designation: "Lecturer" },
+  { name: "Abdul Wadud Shakib", designation: "Lecturer" },
+  { name: "Raisa Fairooz", designation: "Lecturer" },
+  { name: "Farhana Akter", designation: "Lecturer" },
+  { name: "Ms. Ishrar Nazah Chowdhury", designation: "Lecturer" },
+  { name: "Mahbuba Akther Liza", designation: "Lecturer" },
+  { name: "Bibek Das", designation: "Lecturer" },
+  { name: "Mashia Hossain Mim", designation: "Lecturer" },
+  { name: "Barnali Sarker Shoumita", designation: "Teaching Assistant" },
+  { name: "Arfatul Islam Asif", designation: "Teaching Assistant" },
+  { name: "Khalid Bin Selim", designation: "Teaching Assistant" },
+  { name: "Nayem Ahmed", designation: "Teaching Assistant" },
+  { name: "Akhlak Uz Zaman Ashik", designation: "Assistant Professor", status: "Study leave" },
+  { name: "Mst. Shapna Akter", designation: "Lecturer", status: "Study leave" },
+  { name: "Nasif Istiak Remon", designation: "Lecturer", status: "Study leave" },
+  { name: "Khudeja Khanom Anwara", designation: "Lecturer", status: "Study leave" },
+  { name: "Abdullah Alavi", designation: "Lecturer", status: "Study leave" },
+  { name: "Jakaria Hossain", designation: "Lecturer", status: "Study leave" },
+  { name: "Moshiur Ahmed", designation: "Lecturer" },
+  { name: "Iftekhar Hussain", designation: "Lecturer", status: "Study leave" },
+  { name: "Nowshin Sharmin", designation: "Lecturer", status: "Study leave" },
+].map((faculty) => ({ ...faculty, department: "Computer Science & Engineering" }));
+
+const cseFacultyImages = {
+  "Professor Dr. Kabir Hussain Chowdhury": "https://metrouni.edu.bd/images/1781768113.jpeg",
+  "Professor Dr. Yousuf Mahbubul Islam": "https://metrouni.edu.bd/images/1769518961.JPG",
+  "Professor Dr. Md. Nazrul Haque Chowdhury": "https://metrouni.edu.bd/images/1699259829.png",
+  "Professor Choudhury M. Mukammel Wahid": "https://metrouni.edu.bd/images/mu_people_172.png",
+  "Md. Mahfujul Hasan": "https://metrouni.edu.bd/images/mu_people_173.png",
+  "Md. Shamihul Islam Khan Limon": "https://metrouni.edu.bd/images/1699244626.jpg",
+  "Nabila Jannat Rifa": "https://metrouni.edu.bd/images/1699244665.jpg",
+  "Rishad Amin Pulok": "https://metrouni.edu.bd/images/1699244763.jpg",
+  "Salma Akther": "https://metrouni.edu.bd/images/1699245534.jpg",
+  "Abu Jafar Md Jakaria": "https://metrouni.edu.bd/images/1699245600.jpg",
+  "Mayami Das Purkayastha Purba": "https://metrouni.edu.bd/images/1699245645.jpg",
+  "Bushra Azmat Hussain": "https://metrouni.edu.bd/images/1699248158.jpg",
+  "Ruma Das": "https://metrouni.edu.bd/images/1699248293.jpg",
+  "Md. Fahmidur Rahman Sakib": "https://metrouni.edu.bd/images/1699248380.jpg",
+  "Shrabanti Chowdhury": "https://metrouni.edu.bd/images/1728111524.jpg",
+  "Samia Rahman Rima": "https://metrouni.edu.bd/images/1708941597.jpg",
+  "Ruhul Amin": "https://metrouni.edu.bd/images/1708941656.jpg",
+  "Tajbin Jahan": "https://metrouni.edu.bd/images/1708941837.jpg",
+  "Aisha Hayder Chowdhury": "https://metrouni.edu.bd/images/1725982545.jpg",
+  "Abdullah Al Masud": "https://metrouni.edu.bd/images/1725983208.jpg",
+  "Golam Mostofa Naeem": "https://metrouni.edu.bd/images/1708941740.jpg",
+  "Abdul Wadud Shakib": "https://metrouni.edu.bd/images/1708941780.jpg",
+  "Raisa Fairooz": "https://metrouni.edu.bd/images/1736759603.jpg",
+  "Farhana Akter": "https://metrouni.edu.bd/images/1725983249.jpg",
+  "Ms. Ishrar Nazah Chowdhury": "https://metrouni.edu.bd/images/1760862145.jpg",
+  "Mahbuba Akther Liza": "https://metrouni.edu.bd/images/1779272443.jpg",
+  "Bibek Das": "https://metrouni.edu.bd/images/1779272472.jpeg",
+  "Mashia Hossain Mim": "https://metrouni.edu.bd/images/1781018668.jpg",
+  "Barnali Sarker Shoumita": "https://metrouni.edu.bd/images/1779272514.png",
+  "Arfatul Islam Asif": "https://metrouni.edu.bd/images/1779272684.png",
+  "Khalid Bin Selim": "https://metrouni.edu.bd/images/1779275044.jpg",
+  "Nayem Ahmed": "https://metrouni.edu.bd/images/1781018747.png",
+  "Akhlak Uz Zaman Ashik": "https://metrouni.edu.bd/images/1699248683.png",
+  "Mst. Shapna Akter": "https://metrouni.edu.bd/images/1753207274.png",
+  "Nasif Istiak Remon": "https://metrouni.edu.bd/images/1699244690.jpg",
+  "Khudeja Khanom Anwara": "https://metrouni.edu.bd/images/1715356490.PNG",
+  "Abdullah Alavi": "https://metrouni.edu.bd/images/1699248894.jpg",
+  "Jakaria Hossain": "https://metrouni.edu.bd/images/1699248935.jpg",
+  "Moshiur Ahmed": "https://metrouni.edu.bd/images/1699248573.jpg",
+  "Iftekhar Hussain": "https://metrouni.edu.bd/images/1699245564.jpg",
+  "Nowshin Sharmin": "https://metrouni.edu.bd/images/1708941893.jpg",
+};
+
+const seFaculty = [
+  { name: "Professor Dr. Md. Nazrul Haque Chowdhury", designation: "Professor & Dean" },
+  { name: "Dr Abdul Rob", designation: "Professor" },
+  { name: "Professor Fuad Ahmed", designation: "Professor & Head" },
+  { name: "Nazia Sultana Chowdhury", designation: "Assistant Professor" },
+  { name: "Rina Paul", designation: "Assistant Professor" },
+  { name: "Al Akram Chowdhury", designation: "Assistant Professor" },
+  { name: "Wadia Iqbal Chowdhury", designation: "Lecturer" },
+  { name: "Iffat Ahmed Chowdhury Nahid", designation: "Lecturer" },
+  { name: "Nazia Hassan", designation: "Lecturer" },
+  { name: "Syeda Sanjida Rahman", designation: "Lecturer" },
+  { name: "Dhiman Dash", designation: "Adjunct Faculty" },
+  { name: "Lukman Hussain Nakib", designation: "Adjunct Faculty" },
+  { name: "Mridul Kanti Bhattacharjee", designation: "Adjunct Faculty" },
+  { name: "Nasrin Akter Tanya", designation: "Lecturer", status: "Study leave" },
+].map((faculty) => ({ ...faculty, department: "Software Engineering" }));
+
+const seFacultyImages = {
+  "Professor Dr. Md. Nazrul Haque Chowdhury": "https://metrouni.edu.bd/images/1699259829.png",
+  "Dr Abdul Rob": "https://metrouni.edu.bd/images/1759838571.jpeg",
+  "Professor Fuad Ahmed": "https://metrouni.edu.bd/images/1699259586.png",
+  "Nazia Sultana Chowdhury": "https://metrouni.edu.bd/images/1699259607.png",
+  "Rina Paul": "https://metrouni.edu.bd/images/1699259619.png",
+  "Al Akram Chowdhury": "https://metrouni.edu.bd/images/1699259630.png",
+  "Wadia Iqbal Chowdhury": "https://metrouni.edu.bd/images/1699259597.png",
+  "Iffat Ahmed Chowdhury Nahid": "https://metrouni.edu.bd/images/1708942850.jpg",
+  "Nazia Hassan": "https://metrouni.edu.bd/images/1772347053.jpg",
+  "Syeda Sanjida Rahman": "https://metrouni.edu.bd/images/1786192427.jpg",
+  "Dhiman Dash": "https://metrouni.edu.bd/images/1739866097.jpg",
+  "Lukman Hussain Nakib": "https://metrouni.edu.bd/images/1739866235.jpg",
+  "Mridul Kanti Bhattacharjee": "https://metrouni.edu.bd/images/1769930443.jpeg",
+  "Nasrin Akter Tanya": "https://metrouni.edu.bd/images/1725983153.JPG",
+};
+
+const dataScienceFaculty = [
+  { name: "Md. Mushtaq Shahriyar Rafee", designation: "Assistant Professor and Head (In-charge)" },
+  { name: "Archi Arani Basak", designation: "Lecturer" },
+  { name: "Muhammad Muzammil", designation: "Lecturer" },
+  { name: "Nazrul Islam", designation: "Lecturer" },
+].map((faculty) => ({ ...faculty, department: "Data Science" }));
+
+const dataScienceFacultyImages = {
+  "Md. Mushtaq Shahriyar Rafee": "https://metrouni.edu.bd/images/1764832892.png",
+  "Archi Arani Basak": "https://metrouni.edu.bd/images/1764833023.jpg",
+  "Muhammad Muzammil": "https://metrouni.edu.bd/images/1764833043.jpg",
+  "Nazrul Islam": "https://metrouni.edu.bd/images/1768196311.jpg",
+};
+
+const electricalFaculty = [
+  { name: "Professor Dr. Md. Nazrul Haque Chowdhury", designation: "Professor & Dean" },
+  { name: "Dr Abdul Hoque", designation: "Professor" },
+  { name: "Nawshad Ahmed Chowdhury", designation: "Associate Professor", status: "Study leave" },
+  { name: "Md. Rahmot Ullah", designation: "Assistant Professor" },
+  { name: "Safwan Uddin Ahmed", designation: "Assistant Professor & Head" },
+  { name: "Md Anwarul Kawchar", designation: "Lecturer" },
+  { name: "Md Hasanur Rahman Sohag", designation: "Lecturer" },
+  { name: "Sadman Sakib", designation: "Lecturer" },
+  { name: "Md. Fardin Ahasan Maraz", designation: "Lecturer" },
+  { name: "Md. Shadman Shakib", designation: "Lecturer" },
+  { name: "Ahmed Afif Rafsan", designation: "Lecturer" },
+  { name: "Ahmed Istiakur Rahman", designation: "Lecturer" },
+  { name: "Md. Imam Mahdi", designation: "Lecturer" },
+  { name: "Anika Tabassum", designation: "Lecturer" },
+  { name: "Dr. Mohammed Jahirul Islam, PEng", designation: "Professor (Guest Teacher)" },
+  { name: "Surajit Sinha", designation: "Assistant Professor", status: "Study leave" },
+  { name: "Musarrat Tabassum", designation: "Lecturer", status: "Study leave" },
+  { name: "Nafisa Ahmed", designation: "Lecturer", status: "Study leave" },
+  { name: "Mahim Ahmed", designation: "Lecturer" },
+  { name: "Abdullah Al Numan", designation: "Lecturer", status: "Study leave" },
+  { name: "Md Tawsifur Rahman", designation: "Lecturer", status: "Study leave" },
+  { name: "Arpita Mazumder", designation: "Lecturer", status: "Study leave" },
+].map((faculty) => ({ ...faculty, department: "Electrical & Electronic Engineering" }));
+
+const electricalFacultyImages = {
+  "Professor Dr. Md. Nazrul Haque Chowdhury": "https://metrouni.edu.bd/images/1699259829.png",
+  "Dr Abdul Hoque": "https://metrouni.edu.bd/images/1759838893.jpeg",
+  "Nawshad Ahmed Chowdhury": "https://metrouni.edu.bd/images/1699259841.jpg",
+  "Md. Rahmot Ullah": "https://metrouni.edu.bd/images/1699259852.jpg",
+  "Safwan Uddin Ahmed": "https://metrouni.edu.bd/images/1756967648.jpg",
+  "Md Anwarul Kawchar": "https://metrouni.edu.bd/images/1699260043.jpg",
+  "Md Hasanur Rahman Sohag": "https://metrouni.edu.bd/images/1699260128.jpg",
+  "Sadman Sakib": "https://metrouni.edu.bd/images/1699260154.jpg",
+  "Md. Fardin Ahasan Maraz": "https://metrouni.edu.bd/images/1714902495.jpg",
+  "Md. Shadman Shakib": "https://metrouni.edu.bd/images/1708942093.jpg",
+  "Ahmed Afif Rafsan": "https://metrouni.edu.bd/images/1708942208.jpg",
+  "Ahmed Istiakur Rahman": "https://metrouni.edu.bd/images/1708942247.jpg",
+  "Md. Imam Mahdi": "https://metrouni.edu.bd/images/1768671449.JPEG",
+  "Anika Tabassum": "https://metrouni.edu.bd/images/1746722863.JPG",
+  "Dr. Mohammed Jahirul Islam, PEng": "https://metrouni.edu.bd/images/1699260337.png",
+  "Surajit Sinha": "https://metrouni.edu.bd/images/1699260351.png",
+  "Musarrat Tabassum": "https://metrouni.edu.bd/images/1699260397.jpg",
+  "Nafisa Ahmed": "https://metrouni.edu.bd/images/1699259855.jpg",
+  "Mahim Ahmed": "https://metrouni.edu.bd/images/1699260171.jpg",
+  "Abdullah Al Numan": "https://metrouni.edu.bd/images/1736842095.jpg",
+  "Md Tawsifur Rahman": "https://metrouni.edu.bd/images/1725982672.jpeg",
+  "Arpita Mazumder": "https://metrouni.edu.bd/images/1699260103.jpg",
+};
+
+const businessFaculty = [
+  { name: "Professor Md. Taher Billal Khalifa Ph D", designation: "Professor" },
+  { name: "Dr. Tofayel Ahmed", designation: "Professor" },
+  { name: "Dr. Md. Masud Rana", designation: "Professor and Dean" },
+  { name: "Professor Dr. Mohammad Jamal Uddin", designation: "Professor" },
+  { name: "Debashish Roy", designation: "Associate Professor and Head" },
+  { name: "Mohammad Kamrul Ahsan", designation: "Associate Professor" },
+  { name: "Md. Ziaur Rahman", designation: "Associate Professor" },
+  { name: "Md. Gulam Mokta Dhir", designation: "Associate Professor" },
+  { name: "Md. Alaul Haque", designation: "Associate Professor" },
+  { name: "Nishath Anjum", designation: "Assistant Professor" },
+  { name: "Jace Saha", designation: "Assistant Professor" },
+  { name: "Dr. Md Rezaul Haque", designation: "Assistant Professor" },
+  { name: "Ashikur Rahman", designation: "Lecturer" },
+  { name: "Zarin Tasnim Ahmed Mahi", designation: "Lecturer" },
+  { name: "Faria Zahan Sarna", designation: "Lecturer" },
+  { name: "Mst. Khadija Aktar", designation: "Lecturer" },
+  { name: "Fahim Shahriar", designation: "Adjunct Faculty" },
+  { name: "Mohammad Asrafuzzaman Yazdani Razu", designation: "Assistant Professor", status: "Study leave" },
+  { name: "Dr. Md. Monirul Islam", designation: "Professor (Guest Faculty)" },
+  { name: "Dr. Mohammad Shahidul Hoque", designation: "Professor (Guest Faculty)" },
+  { name: "Dr. Fazle Elahi Md. Faisal", designation: "Professor (Guest Faculty)" },
+  { name: "Dr. Mohammad Mizenur Rahman", designation: "Professor (Guest Faculty)" },
+].map((faculty) => ({ ...faculty, department: "Business Administration" }));
+
+const businessFacultyImages = {
+  "Professor Md. Taher Billal Khalifa Ph D": "https://metrouni.edu.bd/images/2cTVDvGEXzXajxCrm9NG_1790140779.jpg",
+  "Dr. Tofayel Ahmed": "https://metrouni.edu.bd/images/1728986282.png",
+  "Dr. Md. Masud Rana": "https://metrouni.edu.bd/images/1734979152.jpg",
+  "Professor Dr. Mohammad Jamal Uddin": "https://metrouni.edu.bd/images/1788080746.jpg",
+  "Debashish Roy": "https://metrouni.edu.bd/images/1699356867.jpg",
+  "Mohammad Kamrul Ahsan": "https://metrouni.edu.bd/images/1768213402.jpg",
+  "Md. Ziaur Rahman": "https://metrouni.edu.bd/images/1768213429.jpg",
+  "Md. Gulam Mokta Dhir": "https://metrouni.edu.bd/images/1777878266.jpg",
+  "Md. Alaul Haque": "https://metrouni.edu.bd/images/1726749188.jpg",
+  "Nishath Anjum": "https://metrouni.edu.bd/images/1768213537.jpg",
+  "Jace Saha": "https://metrouni.edu.bd/images/1714413157.jpg",
+  "Dr. Md Rezaul Haque": "https://metrouni.edu.bd/images/1729934452.jpg",
+  "Ashikur Rahman": "https://metrouni.edu.bd/images/1706973447.jpg",
+  "Zarin Tasnim Ahmed Mahi": "https://metrouni.edu.bd/images/1708942893.jpg",
+  "Faria Zahan Sarna": "https://metrouni.edu.bd/images/1779270811.jpeg",
+  "Mst. Khadija Aktar": "https://metrouni.edu.bd/images/1779270851.jpg",
+  "Fahim Shahriar": "https://metrouni.edu.bd/images/1769839812.jpeg",
+  "Mohammad Asrafuzzaman Yazdani Razu": "https://metrouni.edu.bd/images/1699357402.png",
+  "Dr. Md. Monirul Islam": "https://metrouni.edu.bd/images/1699357473.png",
+  "Dr. Mohammad Shahidul Hoque": "https://metrouni.edu.bd/images/1699357504.png",
+  "Dr. Fazle Elahi Md. Faisal": "https://metrouni.edu.bd/images/1699357539.jpg",
+  "Dr. Mohammad Mizenur Rahman": "https://metrouni.edu.bd/images/1699357568.png",
+};
+
+const economicsFaculty = [
+  { name: "Md. Abdul Aziz", designation: "Professor Emeritus" },
+  { name: "Shah Mohammad Hamza Anwar", designation: "Assistant Professor" },
+  { name: "Dr. Umme Humayara Manni", designation: "Associate Professor and Head" },
+  { name: "Md Amzad Hossain", designation: "Assistant Professor" },
+  { name: "Chowdhury Mujaddid Ahmed", designation: "Lecturer" },
+  { name: "Nourush Jahan", designation: "Lecturer" },
+  { name: "Md Imran Hossain Milon", designation: "Lecturer" },
+  { name: "Muhtasim Fuad Ahmed", designation: "Lecturer" },
+  { name: "Dr. Muntaha Rakib", designation: "Professor (Guest Faculty)" },
+  { name: "Beauty Nahida Sultana", designation: "Assistant Professor", status: "Study leave" },
+].map((faculty) => ({ ...faculty, department: "Economics" }));
+
+const economicsFacultyImages = {
+  "Md. Abdul Aziz": "https://metrouni.edu.bd/images/1699261431.jpg",
+  "Shah Mohammad Hamza Anwar": "https://metrouni.edu.bd/images/1699261501.png",
+  "Dr. Umme Humayara Manni": "https://metrouni.edu.bd/images/1699261525.png",
+  "Md Amzad Hossain": "https://metrouni.edu.bd/images/1734006011.jpeg",
+  "Chowdhury Mujaddid Ahmed": "https://metrouni.edu.bd/images/1706973669.jpg",
+  "Nourush Jahan": "https://metrouni.edu.bd/images/1699261603.jpg",
+  "Md Imran Hossain Milon": "https://metrouni.edu.bd/images/1736842225.jpg",
+  "Muhtasim Fuad Ahmed": "https://metrouni.edu.bd/images/1761024668.jpeg",
+  "Dr. Muntaha Rakib": "https://metrouni.edu.bd/images/1699261651.png",
+  "Beauty Nahida Sultana": "https://metrouni.edu.bd/images/1699261677.png",
+};
+
+const lawFaculty = [
+  { name: "Barrister Md. Arash Ali", designation: "Professor" },
+  { name: "Professor Sheikh Ashrafur Rahaman", designation: "Dean, School of Law" },
+  { name: "Dr. M. Z. Ashraful", designation: "Associate Professor" },
+  { name: "Gazi Saiful Hasan", designation: "Associate Professor" },
+  { name: "Fatema Imrose", designation: "Assistant Professor" },
+  { name: "Mitu Akther", designation: "Assistant Professor" },
+  { name: "Taspiea Mostofa", designation: "Lecturer" },
+  { name: "Syeda Nazmur Siha Muna", designation: "Lecturer" },
+  { name: "Md. Sojibur Rahman", designation: "Lecturer" },
+  { name: "Ms. Mahmuda Sultana", designation: "Lecturer" },
+  { name: "Md. Sariful Islam", designation: "Lecturer" },
+  { name: "Md. Ohidur Rahman Choudhury", designation: "Guest Faculty" },
+  { name: "Barrister Riashad Azim", designation: "Guest Faculty" },
+].map((faculty) => ({ ...faculty, department: "Law & Justice" }));
+
+const lawFacultyImages = {
+  "Barrister Md. Arash Ali": "https://metrouni.edu.bd/images/1699355331.png",
+  "Professor Sheikh Ashrafur Rahaman": "https://metrouni.edu.bd/images/1731259726.jpg",
+  "Dr. M. Z. Ashraful": "https://metrouni.edu.bd/images/1699355373.png",
+  "Gazi Saiful Hasan": "https://metrouni.edu.bd/images/CkyPN1BN25eVr1zjDBdX_1789074072.jpg",
+  "Fatema Imrose": "https://metrouni.edu.bd/images/1699355400.jpg",
+  "Mitu Akther": "https://metrouni.edu.bd/images/1699355413.png",
+  "Taspiea Mostofa": "https://metrouni.edu.bd/images/1699355424.jpg",
+  "Syeda Nazmur Siha Muna": "https://metrouni.edu.bd/images/1699355437.jpg",
+  "Md. Sojibur Rahman": "https://metrouni.edu.bd/images/1711994993.png",
+  "Ms. Mahmuda Sultana": "https://metrouni.edu.bd/images/1708592337.jpg",
+  "Md. Sariful Islam": "https://metrouni.edu.bd/images/1746722937.jpg",
+  "Md. Ohidur Rahman Choudhury": "https://metrouni.edu.bd/images/1699355751.png",
+  "Barrister Riashad Azim": "https://metrouni.edu.bd/images/1699355776.png",
+};
+
+const cseFacultyWithImages = cseFaculty.map((faculty) => ({
+  ...faculty,
+  image: cseFacultyImages[faculty.name],
+}));
+
+const seFacultyWithImages = seFaculty.map((faculty) => ({
+  ...faculty,
+  image: seFacultyImages[faculty.name],
+}));
+
+const dataScienceFacultyWithImages = dataScienceFaculty.map((faculty) => ({
+  ...faculty,
+  image: dataScienceFacultyImages[faculty.name],
+}));
+
+const electricalFacultyWithImages = electricalFaculty.map((faculty) => ({
+  ...faculty,
+  image: electricalFacultyImages[faculty.name],
+}));
+
+const businessFacultyWithImages = businessFaculty.map((faculty) => ({
+  ...faculty,
+  image: businessFacultyImages[faculty.name],
+}));
+
+const economicsFacultyWithImages = economicsFaculty.map((faculty) => ({
+  ...faculty,
+  image: economicsFacultyImages[faculty.name],
+}));
+
+const lawFacultyWithImages = lawFaculty.map((faculty) => ({
+  ...faculty,
+  image: lawFacultyImages[faculty.name],
+}));
+
+const allFaculty = [
+  ...cseFacultyWithImages,
+  ...seFacultyWithImages,
+  ...dataScienceFacultyWithImages,
+  ...electricalFacultyWithImages,
+  ...businessFacultyWithImages,
+  ...economicsFacultyWithImages,
+  ...lawFacultyWithImages,
+];
+const facultySources = [
+  {
+    label: "Computer Science & Engineering",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-computer-science-engineering",
+  },
+  {
+    label: "Software Engineering",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-software-engineering",
+  },
+  {
+    label: "Data Science",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-data-science",
+  },
+  {
+    label: "Electrical & Electronic Engineering",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-electrical-electronic-engineering",
+  },
+  {
+    label: "Business Administration",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-business-administration",
+  },
+  {
+    label: "Economics",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-economics",
+  },
+  {
+    label: "Law & Justice",
+    url: "https://metrouni.edu.bd/sites/faculty-members/department-of-law-justice",
+  },
+];
+
 function App() {
   const [active, setActive] = useState("Dashboard");
   const [dark, setDark] = useState(false);
@@ -61,6 +430,7 @@ function App() {
   const menu = [
     ["Dashboard", "⌂"],
     ["Courses", "▣"],
+    ["Teachers", "♙"],
     ["Assignments", "✓"],
     ["Payments", "৳"],
     ["Attendance", "◷"],
@@ -118,7 +488,7 @@ function App() {
       </aside>
 
       <main className="main">
-        <header className="topbar">
+        <header className={active === "Bus Tracking" ? "topbar bus-topbar" : "topbar"}>
           <div>
             <h1>{active}</h1>
             <p>Welcome back! Here's what's happening today.</p>
@@ -138,6 +508,7 @@ function App() {
 
         {active === "Dashboard" && <Dashboard setActive={setActive} />}
         {active === "Courses" && <Courses />}
+        {active === "Teachers" && <Teachers />}
         {active === "Assignments" && <Assignments />}
         {active === "Payments" && <Payments />}
         {active === "Attendance" && <Attendance />}
@@ -312,6 +683,95 @@ function Courses() {
         ))}
       </div>
     </div>
+  );
+}
+
+function Teachers() {
+  const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("All departments");
+  const departments = [...new Set(allFaculty.map((faculty) => faculty.department))];
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const filteredFaculty = allFaculty.filter((faculty) => {
+    const matchesSearch = `${faculty.name} ${faculty.designation} ${faculty.department}`
+      .toLocaleLowerCase()
+      .includes(normalizedSearch);
+    const matchesDepartment = department === "All departments" || faculty.department === department;
+    return matchesSearch && matchesDepartment;
+  });
+
+  return (
+    <section className="teachers-page">
+      <div className="page-intro">
+        <h2>Faculty Directory</h2>
+        <p>Find faculty members by name or department.</p>
+      </div>
+
+      <div className="teacher-search-panel">
+        <label className="teacher-search-field">
+          <span aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search by name, designation, or department"
+            aria-label="Search teachers by name, designation, or department"
+          />
+        </label>
+        <label className="teacher-department-field">
+          <span>Department</span>
+          <select value={department} onChange={(event) => setDepartment(event.target.value)}>
+            <option>All departments</option>
+            {departments.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="teacher-results-heading">
+        <strong>{filteredFaculty.length} {filteredFaculty.length === 1 ? "faculty member" : "faculty members"}</strong>
+        <span>{department === "All departments" ? "All departments" : `Department of ${department}`}</span>
+      </div>
+
+      {filteredFaculty.length > 0 ? (
+        <div className="teacher-grid">
+          {filteredFaculty.map((faculty) => (
+            <article className="teacher-card" key={`${faculty.department}-${faculty.name}`}>
+              <div className="teacher-avatar" aria-hidden="true">
+                {faculty.name.split(/\s+/).filter((part) => !["Dr.", "Professor", "Prof.", "Ms.", "Md."].includes(part)).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
+                {faculty.image && (
+                  <img
+                    className="teacher-photo"
+                    src={faculty.image}
+                    alt=""
+                    loading="lazy"
+                    onError={(event) => { event.currentTarget.hidden = true; }}
+                  />
+                )}
+              </div>
+              <div className="teacher-card-content">
+                <h3>{faculty.name}</h3>
+                <p>{faculty.designation}</p>
+                <span className="teacher-department">{faculty.department}</span>
+                {faculty.status && <span className="teacher-status">{faculty.status}</span>}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="teacher-empty-state">
+          <span aria-hidden="true">⌕</span>
+          <h3>No faculty members found</h3>
+          <p>Try another name or choose a different department.</p>
+        </div>
+      )}
+
+      <div className="teacher-source-links">
+        {facultySources.map((source) => (
+          <a className="teacher-source-link" href={source.url} target="_blank" rel="noreferrer" key={source.label}>
+            Official {source.label} faculty listing <span aria-hidden="true">↗</span>
+          </a>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -807,28 +1267,137 @@ function Quiz() {
 }
 
 function Bus() {
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const stops = [
+    { name: "Main Gate", x: 82, y: 274 },
+    { name: "Faculty Building", x: 300, y: 174 },
+    { name: "Library", x: 510, y: 98 },
+  ];
+
   return (
     <div className="bus-page">
-      <div className="card bus-info">
+      <div className="bus-page-heading">
         <div>
-          <span className="eyebrow">LIVE TRANSPORT</span>
-          <h2>University Bus Tracking</h2>
-          <p>Track university transportation in real time.</p>
+          <span className="bus-kicker">CAMPUS TRANSPORT</span>
+          <h1>Bus Tracker</h1>
+          <p>See your route, stops, and the demo vehicle location.</p>
         </div>
-
-        <div className="bus-status">
-          <span className="live-dot" />
-          LIVE
-        </div>
+        <button
+          className="bus-refresh"
+          onClick={() => setUpdatedAt(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}
+        >
+          <span aria-hidden="true">↻</span>
+          Refresh
+        </button>
       </div>
 
-      <div className="fake-map">
-        <div className="map-grid" />
-        <div className="map-route">
-          <div className="bus-marker">🚌</div>
+      <section className="bus-summary" aria-label="Vehicle and route summary">
+        <div className="bus-summary-card">
+          <span className="bus-summary-icon">▣</span>
+          <div><small>VEHICLE</small><strong>Bus A1</strong></div>
         </div>
-        <div className="map-label start">University</div>
-        <div className="map-label end">Amberkhana</div>
+        <div className="bus-summary-card">
+          <span className="bus-summary-icon">⌘</span>
+          <div><small>ROUTE</small><strong>Academic Loop</strong></div>
+        </div>
+        <div className="bus-summary-card">
+          <span className="bus-summary-icon">⌖</span>
+          <div><small>STOPS</small><strong>3 stops</strong></div>
+        </div>
+        <div className="bus-summary-card">
+          <span className="feed-dot" />
+          <div><small>LOCATION FEED</small><strong>Demo preview</strong></div>
+        </div>
+      </section>
+
+      <div className="bus-content-grid">
+        <section className="bus-map-card">
+          <div className="bus-map-heading">
+            <div>
+              <span className="map-status"><span /> CAMPUS ROUTE</span>
+              <h2>Academic Loop</h2>
+            </div>
+            <span className="demo-gps">▥ &nbsp;DEMO GPS</span>
+          </div>
+          <div className="campus-map" role="img" aria-label="Illustrated Academic Loop map from Main Gate to Faculty Building to Library">
+            <svg viewBox="0 0 600 320" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="600" height="320" fill="#edf7f4" />
+              <path d="M0 46 C82 79 118 42 196 62 S333 103 421 53 S537 34 600 52 L600 0 0 0Z" fill="#dff2ef" />
+              <path d="M0 292 C99 252 143 304 246 276 S410 242 600 293 L600 320 0 320Z" fill="#e2f2ee" />
+              <g fill="#d9eae3" stroke="#d1e4dc">
+                <rect x="78" y="66" width="52" height="29" rx="8" />
+                <rect x="344" y="63" width="60" height="30" rx="8" />
+                <rect x="226" y="172" width="52" height="30" rx="8" />
+                <rect x="474" y="198" width="57" height="34" rx="9" />
+                <rect x="218" y="260" width="48" height="26" rx="8" />
+                <rect x="320" y="247" width="64" height="34" rx="9" />
+              </g>
+              <g fill="none" stroke="#fff" strokeWidth="17" strokeLinecap="round">
+                <path d="M38 -12 C92 72 52 132 110 202 S146 282 111 337" />
+                <path d="M434 -20 C393 58 458 108 425 185 S433 269 499 337" />
+                <path d="M-12 148 C91 127 156 157 238 135 S397 153 612 100" />
+                <path d="M-10 306 C105 272 166 310 257 285 S421 268 612 314" />
+              </g>
+              <g fill="none" stroke="#d9e7e4" strokeWidth="2" strokeDasharray="7 8">
+                <path d="M-12 148 C91 127 156 157 238 135 S397 153 612 100" />
+                <path d="M-10 306 C105 272 166 310 257 285 S421 268 612 314" />
+              </g>
+              <path d="M82 274 C150 243 220 211 300 174 S430 127 510 98" fill="none" stroke="#fff" strokeWidth="12" strokeLinecap="round" />
+              <path d="M82 274 C150 243 220 211 300 174 S430 127 510 98" fill="none" stroke="#159c91" strokeWidth="6" strokeLinecap="round" />
+              <path d="M300 174 C370 147 436 119 510 98" fill="none" stroke="#2387e8" strokeWidth="6" strokeLinecap="round" />
+              {stops.map((stop, index) => (
+                <g key={stop.name}>
+                  <circle cx={stop.x} cy={stop.y} r="8" fill="white" stroke="#1ba47f" strokeWidth="4" />
+                  <circle cx={stop.x} cy={stop.y} r="2.5" fill="#1ba47f" />
+                  {index < 2 && <text x={stop.x} y={stop.y + 25} textAnchor="middle" className="map-stop-label">{stop.name}</text>}
+                  {index === 2 && <text x={stop.x - 2} y={stop.y - 18} textAnchor="end" className="map-building-label">Library</text>}
+                </g>
+              ))}
+              <g transform="translate(340 158)">
+                <circle r="15" fill="#2387e8" opacity=".16" />
+                <circle r="11" fill="#fff" />
+                <circle r="9" fill="#2387e8" />
+                <text y="4" textAnchor="middle" className="map-bus-icon">▰</text>
+              </g>
+              <g transform="translate(555 45)">
+                <circle r="16" fill="#fff" />
+                <path d="M0 -10 4 2 0 0 -4 2Z" fill="#24516a" />
+                <text y="27" textAnchor="middle" className="map-north">N</text>
+              </g>
+            </svg>
+          </div>
+          <div className="map-caption">
+            <span><i className="legend-route" /> Academic Loop</span>
+            <span><i className="legend-bus" /> Demo vehicle position</span>
+            <span>Updated {updatedAt || "just now"}</span>
+          </div>
+        </section>
+
+        <aside className="bus-sidebar">
+          <section className="next-stop-card">
+            <span className="next-stop-icon">➤</span>
+            <small>NEXT STOP</small>
+            <h2>Library</h2>
+            <p>Bus A1 · Academic Loop</p>
+            <span className="demo-location-pill">Demo location only</span>
+          </section>
+
+          <section className="route-stops-card">
+            <div className="route-stops-heading">
+              <h3>Route stops</h3><span>3</span>
+            </div>
+            <ol className="route-stop-list">
+              {stops.map((stop, index) => (
+                <li className={index < 2 ? "stop-complete" : "stop-next"} key={stop.name}>
+                  <span className="stop-marker">{index < 2 ? "✓" : "3"}</span>
+                  <span>{stop.name}</span>
+                  {index === 2 && <small>Next</small>}
+                </li>
+              ))}
+            </ol>
+          </section>
+          <p className="bus-demo-note">This is a sample route preview, not live GPS tracking.</p>
+        </aside>
       </div>
     </div>
   );
