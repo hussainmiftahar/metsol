@@ -4,23 +4,46 @@ export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (!email || !password) {
       alert("Please enter your email and password.");
       return;
     }
-
-    // Demo login for now
-    localStorage.setItem("studentPortalUser", email);
-
-    if (onLogin) {
-      onLogin({
-        email,
-        name: "Student",
-        role: "STUDENT",
+  
+    try {
+      const response = await fetch("http://localhost:4000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        alert(data.error || "Login failed.");
+        return;
+      }
+  
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("studentPortalUser", email);
+  
+      if (onLogin) {
+        onLogin({
+          email,
+          name: data.user?.name || "Student",
+          role: data.user?.role || "STUDENT",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unable to connect to the server.");
     }
   };
 
