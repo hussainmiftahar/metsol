@@ -13,7 +13,79 @@ app.get('/api/notices',auth,async(req,res)=>res.json(await db.notice.findMany({w
 app.post('/api/notices',auth,roles('ADMIN','TEACHER'),async(req,res)=>res.status(201).json(await db.notice.create({data:{title:req.body.title,body:req.body.body,audience:req.body.audience||'ALL',authorId:req.user.id}})));
 app.get('/api/assignments',auth,async(_,res)=>res.json(await db.assignment.findMany({include:{course:true},orderBy:{dueAt:'asc'}})));
 app.post('/api/assignments',auth,roles('ADMIN','TEACHER'),async(req,res)=>res.status(201).json(await db.assignment.create({data:{title:req.body.title,description:req.body.description,courseId:req.body.courseId,teacherId:req.user.id,dueAt:req.body.dueAt?new Date(req.body.dueAt):null}})));
-app.post('/api/payments/initiate',auth,roles('STUDENT'),async(req,res)=>{const amount=Number(req.body.amount); if(!Number.isFinite(amount)||amount<=0||amount>1000000)return res.status(400).json({error:'Invalid amount'}); const provider=['BKASH','NAGAD'].includes(req.body.provider)?req.body.provider:'BKASH'; const payment=await db.payment.create({data:{studentId:req.user.id,amount,purpose:String(req.body.purpose||'Tuition fee').slice(0,120),provider,status:'PENDING'}}); res.status(202).json({paymentId:payment.id,status:'PENDING',message:`${provider} merchant credentials and verified callback are required to start a real payment.`})});
+app.post('/api/payments/initiate', auth, roles('STUDENT'), async (req, res) => {
+    try {
+      const { invoiceId, provider } = req.body;
+  
+      // Validate invoice ID
+      if (!invoiceId) {
+        return res.status(400).json({
+          error: 'Invoice ID is required'
+        });
+      }
+  
+      // Validate payment provider
+      if (!['BKASH', 'NAGAD'].includes(provider)) {
+        return res.status(400).json({
+          error: 'Invalid payment provider'
+        });
+      }
+  
+      // Find invoice belonging to this student
+      const invoice = await db.feeInvoice.findFirst({
+        where: {
+          id: invoiceId,
+          studentId: req.user.id
+        }
+      });
+  
+      if (!invoice) {
+        return res.status(404).json({
+          error: 'Invoice not found'
+        });
+      }
+  
+      // Prevent paying an already-paid invoice
+      if (invoice.status === 'PAID') {
+        return res.status(400).json({
+          error: 'This invoice is already paid'
+        });
+      }
+  
+      // Generate unique payment reference
+      const reference = randomUUID();
+  
+      // Create pending payment attempt
+      const payment = await db.paymentAttempt.create({
+        data: {
+          reference,
+          invoiceId: invoice.id,
+          provider,
+          amount: invoice.amount,
+          currency: invoice.currency,
+          status: 'PENDING'
+        }
+      });
+  
+      return res.status(202).json({
+        success: true,
+        paymentId: payment.id,
+        reference: payment.reference,
+        amount: payment.amount.toString(),
+        currency: payment.currency,
+        provider: payment.provider,
+        status: 'PENDING',
+        message: 'Payment attempt created. Gateway integration is not configured yet.'
+      });
+  
+    } catch (error) {
+      console.error('Payment initiation error:', error);
+  
+      return res.status(500).json({
+        error: 'Unable to initiate payment'
+      });
+    }
+  });
 app.get('/api/payments',auth,async(req,res)=>res.json(await db.payment.findMany({where:req.user.role==='STUDENT'?{studentId:req.user.id}:{},orderBy:{createdAt:'desc'}})));
 app.post('/api/ai/chat',auth,async(req,res)=>{const prompt=String(req.body.prompt||'').slice(0,5000);if(!prompt)return res.status(400).json({error:'Prompt required'});if(!process.env.OPENAI_API_KEY)return res.json({mode:'demo',answer:'Demo EduAI: I can help explain concepts, summarize notes and create practice questions. Add OPENAI_API_KEY to backend/.env to enable live AI responses. Your question was: '+prompt});try{const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.OPENAI_MODEL||'gpt-4o-mini',messages:[{role:'system',content:'You are EduAI, a helpful university study assistant. Explain clearly and do not fabricate academic sources.'},{role:'user',content:prompt}]})});const data=await r.json();if(!r.ok)throw new Error(data.error?.message||'AI provider error');res.json({mode:'live',answer:data.choices?.[0]?.message?.content||'No response'});}catch(e){res.status(502).json({error:'AI service unavailable',detail:e.message})}});
 app.post('/api/pdf/upload',auth,multer({storage:multer.memoryStorage(),limits:{fileSize:10*1024*1024},fileFilter:(_,f,cb)=>cb(null,f.mimetype==='application/pdf')}).single('file'),(req,res)=>{if(!req.file)return res.status(400).json({error:'Upload a PDF (maximum 10 MB)'});res.status(202).json({message:'PDF received. Connect a PDF text-extraction/OCR worker to enable document Q&A and summaries.',filename:req.file.originalname,size:req.file.size,mode:'processing-required'})});
@@ -25,3 +97,6 @@ app.get('/api/questions',auth,async(_,res)=>res.json(await db.question.findMany(
 app.get('/api/admin/users',auth,roles('ADMIN'),async(_,res)=>res.json(await db.user.findMany({select:{id:true,name:true,email:true,role:true,department:true,studentId:true}})));
 app.use((err,req,res,next)=>{console.error(err);res.status(500).json({error:'Internal server error'})});
 const port=process.env.PORT||4000; app.listen(port,()=>console.log(`Portal API running on http://localhost:${port}`));
+import { randomUUID } from 'node:crypto';
+
+

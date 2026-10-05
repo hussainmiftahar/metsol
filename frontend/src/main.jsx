@@ -1078,6 +1078,52 @@ function Assignments() {
 }
 
 function Payments() {
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [provider, setProvider] = useState("BKASH");
+    const [invoiceId, setInvoiceId] = useState("");
+    const [paymentMessage, setPaymentMessage] = useState("");
+    const handlePayment = async () => {
+      if (!invoiceId.trim()) {
+        setPaymentMessage("Please enter your Invoice ID.");
+        return;
+      }
+    
+      try {
+        const token = localStorage.getItem("token");
+    
+        const response = await fetch(
+          "http://localhost:4000/api/payments/initiate",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              invoiceId: invoiceId.trim(),
+              provider,
+            }),
+          }
+        );
+    
+        const data = await response.json();
+    
+        if (!response.ok) {
+          setPaymentMessage(
+            data.error || "Payment could not be initiated."
+          );
+          return;
+        }
+    
+        setPaymentMessage(
+          `Payment request created. Reference: ${
+            data.reference || "N/A"
+          } — Status: PENDING`
+        );
+      } catch (error) {
+        setPaymentMessage("Unable to connect to the payment server.");
+      }
+    };
   return (
     <>
       <div className="stats-grid">
@@ -1092,7 +1138,12 @@ function Payments() {
             <h3>Payment History</h3>
             <span>Your recent university payments</span>
           </div>
-          <button className="primary-button">Make Payment</button>
+          <button
+  className="primary-button"
+  onClick={() => setShowPaymentForm(true)}
+>
+  Make Payment
+</button>
         </div>
 
         <div className="table">
@@ -1110,6 +1161,63 @@ function Payments() {
           ))}
         </div>
       </div>
+      {showPaymentForm && (
+  <div className="card payment-form-card">
+    <div className="card-header">
+      <div>
+        <h3>Make Payment</h3>
+        <span>Pay your university fee</span>
+      </div>
+    </div>
+
+    <div className="payment-form">
+      <label>
+        Invoice ID
+        <input
+          type="text"
+          value={invoiceId}
+          onChange={(e) => setInvoiceId(e.target.value)}
+          placeholder="Enter invoice ID"
+        />
+      </label>
+
+      <label>
+        Payment Method
+        <select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+        >
+          <option value="BKASH">bKash</option>
+          <option value="NAGAD">Nagad</option>
+        </select>
+      </label>
+
+      <div className="payment-actions">
+        <button
+          className="primary-button"
+          onClick={() => {
+            setPaymentMessage(
+              "Payment request created successfully. Status: PENDING"
+            );
+          }}
+        >
+          Pay Now
+        </button>
+
+        <button
+          className="secondary-button"
+          onClick={() => setShowPaymentForm(false)}
+        >
+          Cancel
+        </button>
+      </div>
+
+      {paymentMessage && (
+        <p className="payment-message">{paymentMessage}</p>
+      )}
+    </div>
+  </div>
+)}
     </>
   );
 }
