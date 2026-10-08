@@ -2,6 +2,107 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 
+const MU_GRADE_SCALE = [
+  { grade: "A+", min: 80, max: 100, points: 4.0 },
+  { grade: "A", min: 75, max: 79.99, points: 3.75 },
+  { grade: "A-", min: 70, max: 74.99, points: 3.5 },
+  { grade: "B+", min: 65, max: 69.99, points: 3.25 },
+  { grade: "B", min: 60, max: 64.99, points: 3.0 },
+  { grade: "B-", min: 55, max: 59.99, points: 2.75 },
+  { grade: "C+", min: 50, max: 54.99, points: 2.5 },
+  { grade: "C", min: 45, max: 49.99, points: 2.25 },
+  { grade: "D", min: 40, max: 44.99, points: 2.0 },
+  { grade: "F", min: 0, max: 39.99, points: 0.0 },
+];
+
+const LETTER_GRADE_MAP = {
+  "A+": 4.0,
+  "A": 3.75,
+  "A-": 3.5,
+  "B+": 3.25,
+  "B": 3.0,
+  "B-": 2.75,
+  "C+": 2.5,
+  "C": 2.25,
+  "D": 2.0,
+  "F": 0.0,
+  "I": 0.0,
+  "W": 0.0,
+  "S": 0.0,
+  "AB": 0.0,
+};
+
+const SPECIAL_GRADES = new Set(["I", "W", "S", "AB"]);
+const GRADE_OPTIONS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "I", "W", "S", "AB"];
+
+const formatDecimal = (value) => Number(value || 0).toFixed(2);
+
+const getGradePointForGrade = (grade) => LETTER_GRADE_MAP[grade] ?? 0;
+
+const isEarnedCredit = (grade) => Boolean(grade) && !SPECIAL_GRADES.has(grade) && grade !== "F";
+
+const getGradeFromScore = (score) => {
+  if (score === "" || score === null || score === undefined) return null;
+  const numericScore = Number(score);
+  if (!Number.isFinite(numericScore)) return null;
+  const gradeEntry = MU_GRADE_SCALE.find(({ min, max }) => numericScore >= min && numericScore <= max) || MU_GRADE_SCALE[MU_GRADE_SCALE.length - 1];
+  return {
+    grade: gradeEntry.grade,
+    gradePoint: gradeEntry.points,
+  };
+};
+
+const calculateCourseSummary = (course = {}) => {
+  const creditValue = Number(course.credit);
+  const grade = course.grade || "";
+  const gradePoint = getGradePointForGrade(grade);
+  const qualityPoint = Number.isFinite(creditValue) && creditValue > 0 ? gradePoint * creditValue : 0;
+
+  return {
+    grade,
+    gradePoint,
+    qualityPoint,
+    earned: isEarnedCredit(grade),
+    attemptedCredits: Number.isFinite(creditValue) && creditValue > 0 ? creditValue : 0,
+  };
+};
+
+const calculateCourseRowsSummary = (courseRows) => {
+  const cleanedRows = courseRows.filter((row) => row.name || row.credit || row.grade);
+  const validRows = cleanedRows.filter((row) => row.grade && Number(row.credit) > 0 && Number.isFinite(Number(row.credit)));
+
+  const attemptedCredits = validRows.reduce((total, row) => total + Number(row.credit), 0);
+
+  const earnedCredits = validRows.reduce((total, row) => {
+    if (isEarnedCredit(row.grade)) {
+      return total + Number(row.credit);
+    }
+    return total;
+  }, 0);
+
+  const totalQualityPoints = validRows.reduce((total, row) => {
+    const gradePoint = getGradePointForGrade(row.grade);
+    return total + (gradePoint * Number(row.credit));
+  }, 0);
+
+  const gpaDenominator = validRows.reduce((total, row) => {
+    if (!SPECIAL_GRADES.has(row.grade)) {
+      return total + Number(row.credit);
+    }
+    return total;
+  }, 0);
+
+  const semesterGpa = gpaDenominator > 0 ? totalQualityPoints / gpaDenominator : 0;
+
+  return {
+    totalQualityPoints,
+    attemptedCredits,
+    earnedCredits,
+    courseCount: validRows.length,
+    semesterGpa,
+  };
+};
+
 const courses = [
   { code: "CSE 310", title: "Artificial Intelligence", teacher: "Dr. Rahman", department: "Department of Computer Science & Engineering", credits: 3, progress: 72 },
   { code: "CSE 320", title: "Database Management", teacher: "Prof. Karim", department: "Department of Computer Science & Engineering", credits: 3, progress: 84 },
@@ -1266,16 +1367,95 @@ function Results() {
     ["Software Engineering", "A", "4.00", "3"],
   ];
 
+  const [courseRows, setCourseRows] = useState([
+    { id: 1, name: "Artificial Intelligence", credit: 3, grade: "A+" },
+    { id: 2, name: "Database Management", credit: 3, grade: "A-" },
+  ]);
+  const [scoreInput, setScoreInput] = useState(84);
+  const [courseScoreInputs, setCourseScoreInputs] = useState({
+    midterm: 25,
+    classTest: 18,
+    attendance: 9,
+    finalExam: 32,
+  });
+  const [validationMessage, setValidationMessage] = useState("");
+
+  const summary = calculateCourseRowsSummary(courseRows);
+
+  const updateCourseRow = (id, field, value) => {
+    setCourseRows((previousRows) =>
+      previousRows.map((row) => {
+        if (row.id !== id) return row;
+        const nextRow = { ...row, [field]: value };
+        return nextRow;
+      })
+    );
+
+    setValidationMessage("");
+  };
+
+  const handleCreditChange = (id, value) => {
+    const numericValue = value === "" ? "" : Number(value);
+
+    if (value !== "" && (!Number.isFinite(numericValue) || numericValue <= 0)) {
+      setValidationMessage("Credit hours must be a positive number.");
+      return;
+    }
+
+    updateCourseRow(id, "credit", value);
+  };
+
+  const addCourseRow = () => {
+    setCourseRows((previousRows) => [
+      ...previousRows,
+      { id: Date.now(), name: "", credit: "", grade: "" },
+    ]);
+  };
+
+  const removeCourseRow = (id) => {
+    setCourseRows((previousRows) => {
+      if (previousRows.length === 1) {
+        return previousRows;
+      }
+      return previousRows.filter((row) => row.id !== id);
+    });
+  };
+
+  const scoreResult = (() => {
+    if (scoreInput === "" || scoreInput === null || scoreInput === undefined) return null;
+
+    const numericScore = Number(scoreInput);
+    if (!Number.isFinite(numericScore)) {
+      return { error: "Score must be a number between 0 and 100." };
+    }
+    if (numericScore < 0 || numericScore > 100) {
+      return { error: "Score must be between 0 and 100." };
+    }
+
+    return getGradeFromScore(numericScore);
+  })();
+
+  const courseScoreTotal = Object.values(courseScoreInputs).reduce((sum, value) => sum + Number(value || 0), 0);
+  const courseScoreResult = getGradeFromScore(courseScoreTotal);
+
+  const summaryRows = courseRows.map((row) => {
+    const computed = calculateCourseSummary(row);
+    return {
+      ...row,
+      ...computed,
+    };
+  });
+
   return (
     <>
       <div className="result-summary">
         <div>
           <span>Current CGPA</span>
-          <strong>3.72</strong>
+          <strong>{summary.semesterGpa > 0 ? Number(summary.semesterGpa).toFixed(2) : "0.00"}</strong>
         </div>
         <div>
           <span>Completed Credits</span>
-          <strong>87</strong>
+          <strong>{summary.earnedCredits > 0 ? Number(summary.earnedCredits).toFixed(0) : "0"}</strong>
         </div>
         <div>
           <span>Semester</span>
@@ -1302,6 +1482,182 @@ function Results() {
               <span>{r[3]}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="card calculator-card">
+        <div className="card-header result-calculator-header">
+          <div>
+            <h3>Result Calculator</h3>
+            <span>Official Metropolitan University grading policy</span>
+          </div>
+        </div>
+
+        <div className="calculator-grid">
+          <div className="calculator-body">
+            <div className="calculator-table">
+              <div className="calculator-table-head">
+                <span>Course Name</span>
+                <span>Credit Hours</span>
+                <span>Grade</span>
+                <span>Grade Point</span>
+                <span>Quality Point</span>
+                <span>Earned Credit</span>
+                <span></span>
+              </div>
+
+              {summaryRows.map((row) => {
+                const computed = calculateCourseSummary(row);
+                const gradePoint = computed.gradePoint;
+                const qualityPoint = computed.qualityPoint;
+                const earned = computed.earned ? "Yes" : "No";
+
+                return (
+                  <div className="calculator-table-row" key={row.id}>
+                    <input
+                      type="text"
+                      value={row.name}
+                      onChange={(event) => updateCourseRow(row.id, "name", event.target.value)}
+                      placeholder="Course name"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.5"
+                      value={row.credit}
+                      onChange={(event) => handleCreditChange(row.id, event.target.value)}
+                      placeholder="3"
+                    />
+                    <select value={row.grade} onChange={(event) => updateCourseRow(row.id, "grade", event.target.value)}>
+                      <option value="">Select grade</option>
+                      {GRADE_OPTIONS.map((grade) => (
+                        <option key={grade} value={grade}>{grade}</option>
+                      ))}
+                    </select>
+                    <span className="calculator-value">{row.grade ? Number(gradePoint).toFixed(2) : "-"}</span>
+                    <span className="calculator-value">{row.grade && Number(row.credit) > 0 ? Number(qualityPoint).toFixed(2) : "-"}</span>
+                    <span className={`calculator-value ${earned === "Yes" ? "earned" : "not-earned"}`}>
+                      {row.grade ? earned : "-"}
+                    </span>
+                    <button type="button" className="remove-row-button" onClick={() => removeCourseRow(row.id)} aria-label={`Remove ${row.name || "course"}`}>
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {validationMessage && <div className="validation-message">{validationMessage}</div>}
+
+            <div className="calculator-actions">
+              <button type="button" className="primary-button" onClick={addCourseRow}>+ Add Course</button>
+              <div className="calc-btn-stack">
+                <button type="button" className="primary-button" onClick={() => setValidationMessage("")}>Calculate Result</button>
+                <button type="button" className="secondary-button" onClick={() => setCourseRows([{ id: Date.now(), name: "", credit: "", grade: "" }])}>Reset</button>
+              </div>
+            </div>
+
+            <div className="summary-card">
+              <h4>Result Summary</h4>
+              <div className="summary-grid">
+                <div>
+                  <span>Semester GPA</span>
+                  <strong>{Number(summary.semesterGpa).toFixed(2)}</strong>
+                </div>
+                <div>
+                  <span>Total Quality Points</span>
+                  <strong>{Number(summary.totalQualityPoints).toFixed(2)}</strong>
+                </div>
+                <div>
+                  <span>Total Attempted Credits</span>
+                  <strong>{Number(summary.attemptedCredits).toFixed(0)}</strong>
+                </div>
+                <div>
+                  <span>Total Earned Credits</span>
+                  <strong>{Number(summary.earnedCredits).toFixed(0)}</strong>
+                </div>
+                <div>
+                  <span>Number of Courses</span>
+                  <strong>{summary.courseCount}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="calculator-side-panel">
+            <div className="mini-panel">
+              <h4>Marks to Grade</h4>
+              <label>
+                <span>Score</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={scoreInput}
+                  onChange={(event) => setScoreInput(event.target.value)}
+                  placeholder="84"
+                />
+              </label>
+
+              {scoreResult && !scoreResult.error ? (
+                <div className="grade-output">
+                  <div>
+                    <span>Letter Grade</span>
+                    <strong>{scoreResult.grade}</strong>
+                  </div>
+                  <div>
+                    <span>Grade Point</span>
+                    <strong>{Number(scoreResult.gradePoint).toFixed(2)}</strong>
+                  </div>
+                </div>
+              ) : null}
+
+              {scoreResult && scoreResult.error ? (
+                <div className="validation-message">{scoreResult.error}</div>
+              ) : null}
+            </div>
+
+            <div className="mini-panel">
+              <h4>Course Score Calculator</h4>
+              <div className="score-fields">
+                <label>
+                  <span>Mid-term Exam</span>
+                  <input type="number" min="0" max="30" value={courseScoreInputs.midterm} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, midterm: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Class Test</span>
+                  <input type="number" min="0" max="20" value={courseScoreInputs.classTest} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, classTest: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Attendance & Participation</span>
+                  <input type="number" min="0" max="10" value={courseScoreInputs.attendance} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, attendance: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Final Exam</span>
+                  <input type="number" min="0" max="40" value={courseScoreInputs.finalExam} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, finalExam: event.target.value }))} />
+                </label>
+              </div>
+
+              <div className="score-total-box">
+                <span>Total Score</span>
+                <strong>{courseScoreTotal}/100</strong>
+              </div>
+
+              {courseScoreResult && !courseScoreResult.error ? (
+                <div className="grade-output">
+                  <div>
+                    <span>Letter Grade</span>
+                    <strong>{courseScoreResult.grade}</strong>
+                  </div>
+                  <div>
+                    <span>Grade Point</span>
+                    <strong>{Number(courseScoreResult.gradePoint).toFixed(2)}</strong>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
     </>
