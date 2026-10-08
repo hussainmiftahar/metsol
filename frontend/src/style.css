@@ -176,6 +176,16 @@
     align-items: center;
     gap: 18px;
   }
+
+  .auth-toggle-button {
+    padding: 9px 13px;
+    border: 1px solid #dce2ea;
+    border-radius: 9px;
+    background: white;
+    color: #344054;
+    font-size: 11px;
+    font-weight: 600;
+  }
   
   .icon-button {
     width: 40px;
@@ -854,11 +864,14 @@
 
   .calculator-body {
     min-width: 0;
+    overflow: hidden;
   }
 
   .calculator-table {
     width: 100%;
+    max-width: 100%;
     overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
 
   .calculator-table-head,
@@ -1090,6 +1103,169 @@
 
   .score-total-box strong {
     font-size: 20px;
+  }
+
+  .official-result-card {
+    margin-top: 24px;
+  }
+
+  .official-result-message,
+  .result-import-message {
+    color: #667085;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .result-upload-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .result-upload-controls input {
+    flex: 1 1 240px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #dfe4ea;
+    border-radius: 9px;
+    background: white;
+    color: #344054;
+    font-size: 12px;
+  }
+
+  .result-upload-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    color: #667085;
+    font-size: 11px;
+  }
+
+  .result-upload-progress progress {
+    width: min(360px, 70%);
+    height: 8px;
+    accent-color: #2563eb;
+  }
+
+  .result-import-preview {
+    margin-top: 18px;
+    padding: 18px;
+    border: 1px solid #e7edf4;
+    border-radius: 14px;
+    background: #f8fafc;
+  }
+
+  .result-import-preview h4 {
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+
+  .result-import-preview dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .result-import-preview dl > div,
+  .official-student-details > div,
+  .official-result-summary > div {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e7edf4;
+    border-radius: 11px;
+    background: white;
+  }
+
+  .result-import-preview dt,
+  .official-student-details span,
+  .official-result-summary span {
+    display: block;
+    margin-bottom: 5px;
+    color: #8b95a5;
+    font-size: 10px;
+  }
+
+  .result-import-preview dd,
+  .official-student-details strong {
+    display: block;
+    overflow-wrap: anywhere;
+    color: #182230;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .result-import-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .result-import-message {
+    margin-top: 12px;
+  }
+
+  .official-student-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .official-result-table {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .official-result-table-head,
+  .official-result-table-row {
+    display: grid;
+    grid-template-columns: minmax(100px, 0.9fr) minmax(100px, 0.9fr) minmax(160px, 1.5fr) 65px 65px 65px 85px;
+    align-items: center;
+    gap: 12px;
+    min-width: 800px;
+    padding: 13px 8px;
+  }
+
+  .official-result-table-head {
+    border-bottom: 1px solid #e9edf2;
+    color: #8b95a5;
+    font-size: 10px;
+  }
+
+  .official-result-table-row {
+    border-bottom: 1px solid #f0f2f5;
+    color: #475467;
+    font-size: 11px;
+  }
+
+  .official-result-table-row strong {
+    color: #182230;
+    font-weight: 600;
+  }
+
+  .official-result-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .official-result-summary strong {
+    font-size: 18px;
+  }
+
+  .official-result-source,
+  .official-semester-summaries {
+    margin-top: 14px;
+    color: #8b95a5;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .official-semester-summaries p + p {
+    margin-top: 3px;
   }
   
   .attendance-row {
@@ -2012,10 +2188,50 @@
   }
   
   .dark .icon-button,
-  .dark .outline-button {
+  .dark .outline-button,
+  .dark .secondary-button {
     background: #111827;
     color: #e5e7eb;
     border-color: #334155;
+  }
+
+  .dark .mini-panel,
+  .dark .summary-card,
+  .dark .result-import-preview {
+    background: #0f172a;
+    border-color: #263244;
+  }
+
+  .dark .summary-grid > div,
+  .dark .grade-output > div,
+  .dark .score-total-box,
+  .dark .result-import-preview dl > div,
+  .dark .official-student-details > div,
+  .dark .official-result-summary > div {
+    background: #111827;
+    border-color: #263244;
+  }
+
+  .dark .calculator-table-row input,
+  .dark .calculator-table-row select,
+  .dark .mini-panel input,
+  .dark .result-upload-controls input {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-color: #334155;
+  }
+
+  .dark .calculator-value,
+  .dark .official-result-table-row,
+  .dark .official-result-table-row strong,
+  .dark .result-import-preview dd,
+  .dark .official-student-details strong {
+    color: #e5e7eb;
+  }
+
+  .dark .official-result-message,
+  .dark .result-import-message {
+    color: #a9b8c8;
   }
   
   .dark .quick-grid button {
@@ -2161,6 +2377,10 @@
     .bus-content-grid {
       grid-template-columns: minmax(0, 1.5fr) minmax(220px, 1fr);
     }
+
+    .calculator-grid {
+      grid-template-columns: 1fr;
+    }
   }
   
   @media (max-width: 750px) {
@@ -2255,6 +2475,14 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .official-student-details {
+      grid-template-columns: 1fr;
+    }
+
+    .official-result-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .calculator-table-head {
       display: none;
     }
@@ -2267,6 +2495,38 @@
       border: 1px solid #e8edf3;
       border-radius: 12px;
       margin-bottom: 12px;
+    }
+
+    .official-result-table-head {
+      display: none;
+    }
+
+    .official-result-table {
+      overflow: visible;
+    }
+
+    .official-result-table-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      min-width: 0;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #e8edf3;
+      border-radius: 12px;
+      background: white;
+      gap: 10px;
+    }
+
+    .official-result-table-row > *::before {
+      display: block;
+      margin-bottom: 3px;
+      color: #8b95a5;
+      content: attr(data-label);
+      font-size: 9px;
+      font-weight: 400;
+    }
+
+    .result-import-preview dl {
+      grid-template-columns: 1fr;
     }
   
     .table-head {
@@ -2370,6 +2630,48 @@
   justify-content: center;
   padding: 24px;
   background: linear-gradient(135deg, #eef4ff, #f8fbff);
+}
+
+.auth-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.auth-modal-card {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border-radius: 20px;
+  background: white;
+}
+
+.auth-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #f1f5f9;
+  color: #344054;
+  font-size: 22px;
+}
+
+.auth-modal-card .login-page {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.auth-modal-card .login-card {
+  box-shadow: none;
 }
 
 .login-card {

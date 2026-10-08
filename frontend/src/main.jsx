@@ -1,56 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { calculateResultSummary, getGradeFromScore, getGradePointForGrade, isEarnedCredit, SPECIAL_GRADES } from "../../shared/grading.js";
+import Login from "./Login.jsx";
 import "./style.css";
 
-const MU_GRADE_SCALE = [
-  { grade: "A+", min: 80, max: 100, points: 4.0 },
-  { grade: "A", min: 75, max: 79.99, points: 3.75 },
-  { grade: "A-", min: 70, max: 74.99, points: 3.5 },
-  { grade: "B+", min: 65, max: 69.99, points: 3.25 },
-  { grade: "B", min: 60, max: 64.99, points: 3.0 },
-  { grade: "B-", min: 55, max: 59.99, points: 2.75 },
-  { grade: "C+", min: 50, max: 54.99, points: 2.5 },
-  { grade: "C", min: 45, max: 49.99, points: 2.25 },
-  { grade: "D", min: 40, max: 44.99, points: 2.0 },
-  { grade: "F", min: 0, max: 39.99, points: 0.0 },
-];
-
-const LETTER_GRADE_MAP = {
-  "A+": 4.0,
-  "A": 3.75,
-  "A-": 3.5,
-  "B+": 3.25,
-  "B": 3.0,
-  "B-": 2.75,
-  "C+": 2.5,
-  "C": 2.25,
-  "D": 2.0,
-  "F": 0.0,
-  "I": 0.0,
-  "W": 0.0,
-  "S": 0.0,
-  "AB": 0.0,
-};
-
-const SPECIAL_GRADES = new Set(["I", "W", "S", "AB"]);
 const GRADE_OPTIONS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "I", "W", "S", "AB"];
-
-const formatDecimal = (value) => Number(value || 0).toFixed(2);
-
-const getGradePointForGrade = (grade) => LETTER_GRADE_MAP[grade] ?? 0;
-
-const isEarnedCredit = (grade) => Boolean(grade) && !SPECIAL_GRADES.has(grade) && grade !== "F";
-
-const getGradeFromScore = (score) => {
-  if (score === "" || score === null || score === undefined) return null;
-  const numericScore = Number(score);
-  if (!Number.isFinite(numericScore)) return null;
-  const gradeEntry = MU_GRADE_SCALE.find(({ min, max }) => numericScore >= min && numericScore <= max) || MU_GRADE_SCALE[MU_GRADE_SCALE.length - 1];
-  return {
-    grade: gradeEntry.grade,
-    gradePoint: gradeEntry.points,
-  };
-};
 
 const calculateCourseSummary = (course = {}) => {
   const creditValue = Number(course.credit);
@@ -68,39 +22,7 @@ const calculateCourseSummary = (course = {}) => {
 };
 
 const calculateCourseRowsSummary = (courseRows) => {
-  const cleanedRows = courseRows.filter((row) => row.name || row.credit || row.grade);
-  const validRows = cleanedRows.filter((row) => row.grade && Number(row.credit) > 0 && Number.isFinite(Number(row.credit)));
-
-  const attemptedCredits = validRows.reduce((total, row) => total + Number(row.credit), 0);
-
-  const earnedCredits = validRows.reduce((total, row) => {
-    if (isEarnedCredit(row.grade)) {
-      return total + Number(row.credit);
-    }
-    return total;
-  }, 0);
-
-  const totalQualityPoints = validRows.reduce((total, row) => {
-    const gradePoint = getGradePointForGrade(row.grade);
-    return total + (gradePoint * Number(row.credit));
-  }, 0);
-
-  const gpaDenominator = validRows.reduce((total, row) => {
-    if (!SPECIAL_GRADES.has(row.grade)) {
-      return total + Number(row.credit);
-    }
-    return total;
-  }, 0);
-
-  const semesterGpa = gpaDenominator > 0 ? totalQualityPoints / gpaDenominator : 0;
-
-  return {
-    totalQualityPoints,
-    attemptedCredits,
-    earnedCredits,
-    courseCount: validRows.length,
-    semesterGpa,
-  };
+  return calculateResultSummary(courseRows);
 };
 
 const courses = [
@@ -527,6 +449,29 @@ const facultySources = [
 function App() {
   const [active, setActive] = useState("Dashboard");
   const [dark, setDark] = useState(false);
+  const [sessionUser, setSessionUser] = useState(null);
+  const [showLogin, setShowLogin] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    fetch("http://localhost:4000/api/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((user) => {
+        if (user) setSessionUser(user);
+      })
+      .catch(() => setSessionUser(null));
+  }, []);
+
+  const signOut = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("studentPortalUser");
+    setSessionUser(null);
+    setActive("Dashboard");
+  };
 
   const menu = [
     ["Dashboard", "⌂"],
@@ -557,8 +502,8 @@ function App() {
         <div className="profile-mini">
           <div className="avatar">MK</div>
           <div>
-            <strong>Student</strong>
-            <span>ID: 241-115-169</span>
+            <strong>{sessionUser?.name || "Student"}</strong>
+            <span>{sessionUser?.studentId ? `ID: ${sessionUser.studentId}` : sessionUser?.role || "ID: 241-115-169"}</span>
           </div>
         </div>
 
@@ -597,11 +542,17 @@ function App() {
 
           <div className="top-actions">
             <button className="icon-button">🔔</button>
+            <button
+              className="auth-toggle-button"
+              onClick={() => sessionUser ? signOut() : setShowLogin(true)}
+            >
+              {sessionUser ? "Sign out" : "Sign in"}
+            </button>
             <div className="top-profile">
               <div className="avatar small">MK</div>
               <div>
-                <strong>Student</strong>
-                <span>Computer Science</span>
+                <strong>{sessionUser?.name || "Student"}</strong>
+                <span>{sessionUser?.department || sessionUser?.role || "Computer Science"}</span>
               </div>
             </div>
           </div>
@@ -613,13 +564,27 @@ function App() {
         {active === "Assignments" && <Assignments />}
         {active === "Payments" && <Payments />}
         {active === "Attendance" && <Attendance />}
-        {active === "Results" && <Results />}
+        {active === "Results" && <Results key={sessionUser?.role || "guest"} />}
         {active === "Notices" && <Notices />}
         {active === "Resources" && <Resources />}
         {active === "Quiz" && <Quiz />}
         {active === "Bus Tracking" && <Bus />}
         {active === "AI Assistant" && <Assistant />}
       </main>
+      {showLogin && (
+        <div className="auth-modal-backdrop" role="presentation" onClick={(event) => {
+          if (event.target === event.currentTarget) setShowLogin(false);
+        }}>
+          <div className="auth-modal-card" role="dialog" aria-modal="true" aria-label="Sign in to Smart University">
+            <button className="auth-modal-close" type="button" onClick={() => setShowLogin(false)} aria-label="Close sign in">×</button>
+            <Login onLogin={(user) => {
+              setSessionUser(user);
+              setShowLogin(false);
+              setActive("Results");
+            }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1485,6 +1450,8 @@ function Results() {
         </div>
       </div>
 
+      <OfficialUniversityResult />
+
       <div className="card calculator-card">
         <div className="card-header result-calculator-header">
           <div>
@@ -1661,6 +1628,257 @@ function Results() {
         </div>
       </div>
     </>
+  );
+}
+
+function OfficialUniversityResult() {
+  const [accountRole, setAccountRole] = useState("");
+  const [officialResult, setOfficialResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const fileInputRef = useRef(null);
+  const readJsonResponse = (response) => response.json().catch(() => ({}));
+
+  const loadOfficialResult = async (token) => {
+    const response = await fetch("http://localhost:4000/api/results/official", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await readJsonResponse(response);
+    if (!response.ok) throw new Error(data.error || "Unable to load your official result.");
+    setOfficialResult(data);
+  };
+
+  useEffect(() => {
+    let active = true;
+    const loadAccount = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:4000/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const user = await readJsonResponse(response);
+        if (!response.ok) throw new Error(user.error || "Sign in to view your official result.");
+        if (!active) return;
+        setAccountRole(user.role || "");
+        if (user.role === "STUDENT") {
+          await loadOfficialResult(token);
+        }
+      } catch (error) {
+        if (active) setMessage(error.message || "Unable to connect to the result service.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadAccount();
+    return () => { active = false; };
+  }, []);
+
+  const sendPdf = (endpoint, file) => new Promise((resolve, reject) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      reject(new Error("Sign in with an administrator account to upload result documents."));
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    const request = new XMLHttpRequest();
+    request.open("POST", `http://localhost:4000${endpoint}`);
+    request.setRequestHeader("Authorization", `Bearer ${token}`);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onerror = () => reject(new Error("Unable to connect to the result service."));
+    request.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(request.responseText);
+      } catch {
+        reject(new Error(request.status === 401
+          ? "Sign in before requesting result documents."
+          : request.status === 403
+            ? "You are not authorized to import result documents."
+            : "The result service returned an unreadable response."));
+        return;
+      }
+      if (request.status < 200 || request.status >= 300) {
+        reject(new Error(data.error || "The result PDF could not be processed."));
+        return;
+      }
+      resolve(data);
+    };
+    request.send(formData);
+  });
+
+  const handlePreview = async () => {
+    if (!selectedFile) {
+      setMessage("Choose a university result PDF first.");
+      return;
+    }
+    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
+      setMessage("Choose a file with the .pdf extension.");
+      return;
+    }
+
+    setUploadBusy(true);
+    setUploadProgress(0);
+    setMessage("");
+    setPreview(null);
+    try {
+      setPreview(await sendPdf("/api/admin/results/import/preview", selectedFile));
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!selectedFile || !preview || preview.duplicate) return;
+    setUploadBusy(true);
+    setUploadProgress(0);
+    setMessage("");
+    try {
+      const result = await sendPdf("/api/admin/results/import", selectedFile);
+      setMessage(result.message);
+      setPreview(null);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const cancelPreview = () => {
+    setPreview(null);
+    setSelectedFile(null);
+    setMessage("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  return (
+    <section className="card official-result-card">
+      {accountRole === "ADMIN" ? (
+        <>
+          <div className="card-header">
+            <div>
+              <h3>Upload University Result PDF</h3>
+              <span>Admin-only import · PDF files up to 15 MB</span>
+            </div>
+          </div>
+          <div className="result-upload-controls">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(event) => {
+                setSelectedFile(event.target.files?.[0] ?? null);
+                setPreview(null);
+                setMessage("");
+              }}
+              disabled={uploadBusy}
+            />
+            <button type="button" className="primary-button" onClick={handlePreview} disabled={uploadBusy || !selectedFile}>
+              {uploadBusy ? "Processing..." : "Preview PDF"}
+            </button>
+          </div>
+          {uploadBusy && (
+            <div className="result-upload-progress" aria-live="polite">
+              <progress max="100" value={uploadProgress} />
+              <span>{uploadProgress}% uploaded</span>
+            </div>
+          )}
+          {preview && (
+            <div className="result-import-preview">
+              <h4>Import Preview</h4>
+              <dl>
+                <div><dt>File</dt><dd>{preview.fileName}</dd></div>
+                <div><dt>Students detected</dt><dd>{preview.studentCount.toLocaleString()}</dd></div>
+                <div><dt>Result records</dt><dd>{preview.recordCount.toLocaleString()}</dd></div>
+                <div><dt>Status</dt><dd>{preview.duplicate ? "Already imported" : "Parsed successfully"}</dd></div>
+              </dl>
+              <div className="result-import-actions">
+                <button type="button" className="primary-button" onClick={handleImport} disabled={uploadBusy || preview.duplicate}>
+                  Import Results
+                </button>
+                <button type="button" className="secondary-button" onClick={cancelPreview} disabled={uploadBusy}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {message && <p className="result-import-message" role="status">{message}</p>}
+        </>
+      ) : (
+        <>
+          <div className="card-header">
+            <div>
+              <h3>Official University Result</h3>
+              <span>Imported from a university-provided result PDF</span>
+            </div>
+          </div>
+          {loading ? (
+            <p className="official-result-message">Loading your result…</p>
+          ) : accountRole !== "STUDENT" ? (
+            <p className="official-result-message">{message || "Sign in as a student to view your official result."}</p>
+          ) : officialResult?.found ? (
+            <>
+              <div className="official-student-details">
+                <div><span>Student Name</span><strong>{officialResult.student.name}</strong></div>
+                <div><span>Student ID</span><strong>{officialResult.student.studentId}</strong></div>
+                <div><span>Semester</span><strong>{[...new Set(officialResult.records.map((record) => record.semester).filter(Boolean))].join(", ") || "Not specified"}</strong></div>
+              </div>
+              <div className="official-result-table">
+                <div className="official-result-table-head">
+                  <span>Semester</span><span>Course Code</span><span>Course</span><span>Credit</span><span>Marks</span><span>Grade</span><span>Grade Point</span>
+                </div>
+                {officialResult.records.map((record, index) => (
+                  <div className="official-result-table-row" key={`${record.courseCode || record.courseTitle}-${record.semester}-${index}`}>
+                    <span data-label="Semester">{[record.semester, record.academicYear].filter(Boolean).join(" · ") || "—"}</span>
+                    <span data-label="Course Code">{record.courseCode || "—"}</span>
+                    <strong data-label="Course">{record.courseTitle || "—"}</strong>
+                    <span data-label="Credit">{record.credits}</span>
+                    <span data-label="Marks">{record.marks ?? "—"}</span>
+                    <span data-label="Grade">{record.grade}</span>
+                    <span data-label="Grade Point">{Number(record.gradePoint).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="official-result-summary">
+                <div><span>GPA</span><strong>{officialResult.summary.gpa === null ? "—" : Number(officialResult.summary.gpa).toFixed(2)}</strong></div>
+                <div><span>CGPA</span><strong>{officialResult.summary.cgpa === null ? "—" : Number(officialResult.summary.cgpa).toFixed(2)}</strong></div>
+                <div><span>Quality Points</span><strong>{Number(officialResult.summary.totalQualityPoints).toFixed(2)}</strong></div>
+                <div><span>Attempted Credits</span><strong>{Number(officialResult.summary.totalAttemptedCredits).toFixed(2)}</strong></div>
+              </div>
+              {officialResult.semesters.length > 1 && (
+                <div className="official-semester-summaries">
+                  {officialResult.semesters.map((semester, index) => (
+                    <p key={`${semester.semester}-${semester.academicYear}-${index}`}>
+                      {[semester.semester, semester.academicYear].filter(Boolean).join(" · ") || `Term ${index + 1}`}:
+                      {" "}GPA {semester.gpa === null ? "—" : Number(semester.gpa).toFixed(2)}
+                      {semester.cgpa === null ? "" : ` · CGPA ${Number(semester.cgpa).toFixed(2)}`}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <p className="official-result-source">{officialResult.source.label}</p>
+            </>
+          ) : (
+            <p className="official-result-message">{message || officialResult?.message || "Your result was not found in the currently uploaded university result document."}</p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 

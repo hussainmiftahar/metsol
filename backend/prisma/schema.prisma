@@ -30,13 +30,14 @@ model User {
   phone        String?
   createdAt    DateTime @default(now())
 
-  courses     CourseEnrollment[]
-  assignments Assignment[]
-  submissions Submission[]
-  payments    Payment[]
-  feeInvoices FeeInvoice[]
-  attendance  Attendance[]
-  notices     Notice[]           @relation("NoticeAuthor")
+  courses       CourseEnrollment[]
+  assignments   Assignment[]
+  submissions   Submission[]
+  payments      Payment[]
+  feeInvoices   FeeInvoice[]
+  attendance    Attendance[]
+  notices       Notice[]           @relation("NoticeAuthor")
+  resultImports ResultImport[]     @relation("ResultImportUploader")
 }
 
 model Course {
@@ -137,6 +138,44 @@ model Result {
   grade       String
   gradePoint  Float
   credits     Int
+}
+
+model ResultImport {
+  id           String   @id @default(cuid())
+  fileName     String
+  fileHash     String   @unique
+  uploadedById String
+  uploadedAt   DateTime @default(now())
+  recordCount  Int
+  studentCount Int
+  status       String   @default("IMPORTED")
+
+  uploadedBy User               @relation("ResultImportUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  results    UniversityResult[]
+
+  @@index([uploadedAt])
+}
+
+model UniversityResult {
+  id                  String  @id @default(cuid())
+  resultImportId      String
+  studentId           String
+  studentIdNormalized String
+  studentName         String?
+  courseCode          String?
+  courseTitle         String?
+  credits             Float
+  marks               Float?
+  grade               String
+  gradePoint          Float
+  semester            String?
+  academicYear        String?
+  gpa                 Float?
+  cgpa                Float?
+
+  resultImport ResultImport @relation(fields: [resultImportId], references: [id], onDelete: Cascade)
+
+  @@index([resultImportId, studentIdNormalized])
 }
 
 model Resource {

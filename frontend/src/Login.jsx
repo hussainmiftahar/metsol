@@ -36,9 +36,12 @@ export default function Login({ onLogin }) {
   
       if (onLogin) {
         onLogin({
+          id: data.user?.id,
           email,
           name: data.user?.name || "Student",
           role: data.user?.role || "STUDENT",
+          studentId: data.user?.studentId || null,
+          department: data.user?.department || null,
         });
       }
     } catch (error) {

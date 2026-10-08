@@ -22,7 +22,7 @@ Node.js 20+, npm, PostgreSQL 14+.
    cd backend
    npm ci
    npx prisma generate
-   npx prisma migrate dev --name init
+   npx prisma migrate dev
    npm run seed
    npm run dev
    ```
@@ -40,6 +40,13 @@ Demo login (after seeding):
 - Student: student@university.test / Student123!
 
 Change demo passwords and JWT_SECRET before deployment.
+
+## University result PDF import
+Administrators can preview and import a university result PDF from the Results page. PDFs are processed in backend memory and are not made public or retained. The same PDF is rejected on repeat import by its SHA-256 hash; a different release is stored as a new historical import, and students see records from the latest imported release only.
+
+The current parser is deliberately conservative: it supports text-based PDFs with a single-row table header containing Student ID, course code or course name, credit, and grade or marks columns, with the Student ID present on each course row. It rejects unknown layouts instead of guessing. Scanned/image-only PDFs require an OCR service and are currently rejected with an explicit message. The actual Metropolitan University result PDF layout has not been supplied for parser validation, so administrators should test a representative PDF before relying on imports.
+
+Student results are fetched using the Student ID attached to the authenticated backend account; the endpoint does not accept a student ID from the browser. Admin upload and import routes enforce the ADMIN role server-side. Run backend tests with `npm test` from `backend`.
 
 ## External integrations
 - AI: Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in backend/.env. Without a key, EduAI returns clearly labelled demo responses.

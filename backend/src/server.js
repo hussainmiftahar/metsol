@@ -1,8 +1,56 @@
 import 'dotenv/config';
+import { createHash } from 'node:crypto';
+import { basename } from 'node:path';
+import { calculateResultSummary, SPECIAL_GRADES } from '../../shared/grading.js';
+import { extractPdfLines, isPdfBuffer, normalizeStudentId, ResultPdfError } from './result-import/pdfParser.js';
+import { parseResultLines } from './result-import/resultParser.js';
+import { getAuthenticatedStudentResultFilter } from './result-import/studentResultMatcher.js';
 import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import multer from 'multer'; import { PrismaClient } from '@prisma/client';
 const app=express(), db=new PrismaClient(); app.use(helmet()); app.use(cors({origin:process.env.FRONTEND_URL||'http://localhost:5173'})); app.use(express.json({limit:'2mb'})); app.use(rateLimit({windowMs:15*60*1000,limit:300}));
 const auth=async(req,res,next)=>{try{const token=(req.headers.authorization||'').replace(/^Bearer /,''); const p=jwt.verify(token,process.env.JWT_SECRET); req.user=await db.user.findUnique({where:{id:p.sub},select:{id:true,name:true,email:true,role:true,studentId:true,department:true}}); if(!req.user)return res.sendStatus(401); next();}catch{return res.sendStatus(401)}};
-const roles=(...r)=>(req,res,next)=>r.includes(req.user?.role)?next():res.sendStatus(403);
+const roles=(...r)=>(req,res,next)=>r.includes(req.user?.role)?next():res.status(403).json({error:'You are not authorized to perform this action.'});
+const resultUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1 } }).single('file');
+const handleResultUpload = (req, res, next) => resultUpload(req, res, (error) => {
+  if (!error) return next();
+  if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'The PDF must be 15 MB or smaller.' });
+  }
+  if (error instanceof multer.MulterError) {
+    return res.status(400).json({ error: 'Upload one PDF file to continue.' });
+  }
+  return next(error);
+});
+
+const parseResultUpload = async (req) => {
+  if (!req.file) throw new ResultPdfError('Choose a PDF file to upload.', 'FILE_REQUIRED');
+  if (!isPdfBuffer(req.file.buffer)) throw new ResultPdfError('The uploaded file is not a valid PDF.');
+  const parsed = parseResultLines(await extractPdfLines(req.file.buffer));
+  return {
+    ...parsed,
+    fileHash: createHash('sha256').update(req.file.buffer).digest('hex'),
+    fileName: basename(req.file.originalname).replace(/[^\w.() -]/gu, '_').slice(0, 180) || 'university-results.pdf',
+  };
+};
+
+const calculateGpa = (records) => {
+  const gpa = calculateResultSummary(records).semesterGpa;
+  return gpa > 0 || records.some((record) => !SPECIAL_GRADES.has(record.grade)) ? gpa : null;
+};
+
+const uniqueProvidedValue = (records, field) => {
+  const values = [...new Set(records.map((record) => record[field]).filter((value) => value !== null && value !== undefined))];
+  return values.length === 1 ? values[0] : null;
+};
+
+const resultPdfErrorResponse = (res, error) => {
+  if (error instanceof ResultPdfError) {
+    const status = error.code === 'FILE_REQUIRED' ? 400 : 422;
+    return res.status(status).json({ error: error.message, code: error.code });
+  }
+  console.error('University result PDF processing failed:', error);
+  return res.status(500).json({ error: 'Unable to process this result PDF.' });
+};
+
 app.get('/api/health',(_,res)=>res.json({ok:true,service:'Smart University Portal API'}));
 app.post('/api/auth/login',async(req,res)=>{const {email,password}=req.body||{}; const u=await db.user.findUnique({where:{email}}); if(!u||!await bcrypt.compare(password||'',u.passwordHash))return res.status(401).json({error:'Invalid email or password'}); const token=jwt.sign({sub:u.id},process.env.JWT_SECRET,{expiresIn:'12h'}); res.json({token,user:{id:u.id,name:u.name,email:u.email,role:u.role,studentId:u.studentId,department:u.department}})});
 app.get('/api/me',auth,(req,res)=>res.json(req.user));
@@ -90,6 +138,161 @@ app.get('/api/payments',auth,async(req,res)=>res.json(await db.payment.findMany(
 app.post('/api/ai/chat',auth,async(req,res)=>{const prompt=String(req.body.prompt||'').slice(0,5000);if(!prompt)return res.status(400).json({error:'Prompt required'});if(!process.env.OPENAI_API_KEY)return res.json({mode:'demo',answer:'Demo EduAI: I can help explain concepts, summarize notes and create practice questions. Add OPENAI_API_KEY to backend/.env to enable live AI responses. Your question was: '+prompt});try{const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:process.env.OPENAI_MODEL||'gpt-4o-mini',messages:[{role:'system',content:'You are EduAI, a helpful university study assistant. Explain clearly and do not fabricate academic sources.'},{role:'user',content:prompt}]})});const data=await r.json();if(!r.ok)throw new Error(data.error?.message||'AI provider error');res.json({mode:'live',answer:data.choices?.[0]?.message?.content||'No response'});}catch(e){res.status(502).json({error:'AI service unavailable',detail:e.message})}});
 app.post('/api/pdf/upload',auth,multer({storage:multer.memoryStorage(),limits:{fileSize:10*1024*1024},fileFilter:(_,f,cb)=>cb(null,f.mimetype==='application/pdf')}).single('file'),(req,res)=>{if(!req.file)return res.status(400).json({error:'Upload a PDF (maximum 10 MB)'});res.status(202).json({message:'PDF received. Connect a PDF text-extraction/OCR worker to enable document Q&A and summaries.',filename:req.file.originalname,size:req.file.size,mode:'processing-required'})});
 app.get('/api/transport',auth,async(_,res)=>{if(!process.env.TRANSPORT_PROVIDER_URL)return res.json({mode:'demo',message:'Sample locations only — connect a GPS provider for live tracking.',buses:[{id:'BUS-01',name:'Campus Shuttle 01',latitude:24.8949,longitude:91.8687,status:'DEMO'},{id:'BUS-02',name:'Campus Shuttle 02',latitude:24.9001,longitude:91.875,status:'DEMO'}]});try{const r=await fetch(process.env.TRANSPORT_PROVIDER_URL,{headers:{Authorization:`Bearer ${process.env.TRANSPORT_API_KEY}`}});res.json({mode:'live',buses:await r.json()})}catch{res.status(502).json({error:'Transport provider unavailable'})}});
+app.post('/api/admin/results/import/preview', auth, roles('ADMIN'), handleResultUpload, async (req, res) => {
+  try {
+    const parsed = await parseResultUpload(req);
+    const existing = await db.resultImport.findUnique({ where: { fileHash: parsed.fileHash }, select: { id: true, uploadedAt: true } });
+    return res.json({
+      fileName: parsed.fileName,
+      studentCount: parsed.studentCount,
+      recordCount: parsed.records.length,
+      duplicate: Boolean(existing),
+      alreadyImportedAt: existing?.uploadedAt ?? null,
+      message: existing ? 'This exact PDF has already been imported.' : 'PDF parsed successfully. Review the detected counts before importing.',
+    });
+  } catch (error) {
+    return resultPdfErrorResponse(res, error);
+  }
+});
+
+app.post('/api/admin/results/import', auth, roles('ADMIN'), handleResultUpload, async (req, res) => {
+  try {
+    const parsed = await parseResultUpload(req);
+    const existing = await db.resultImport.findUnique({ where: { fileHash: parsed.fileHash }, select: { id: true } });
+    if (existing) return res.status(409).json({ error: 'This exact PDF has already been imported.', code: 'DUPLICATE_IMPORT' });
+
+    const imported = await db.$transaction(async (transaction) => {
+      const resultImport = await transaction.resultImport.create({
+        data: {
+          fileName: parsed.fileName,
+          fileHash: parsed.fileHash,
+          uploadedById: req.user.id,
+          recordCount: parsed.records.length,
+          studentCount: parsed.studentCount,
+        },
+      });
+
+      for (let start = 0; start < parsed.records.length; start += 500) {
+        const batch = parsed.records.slice(start, start + 500).map((record) => ({
+          ...record,
+          resultImportId: resultImport.id,
+        }));
+        await transaction.universityResult.createMany({ data: batch });
+      }
+      return resultImport;
+    });
+
+    return res.status(201).json({
+      id: imported.id,
+      fileName: imported.fileName,
+      studentCount: imported.studentCount,
+      recordCount: imported.recordCount,
+      uploadedAt: imported.uploadedAt,
+      message: 'University results imported successfully.',
+    });
+  } catch (error) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({ error: 'This exact PDF has already been imported.', code: 'DUPLICATE_IMPORT' });
+    }
+    return resultPdfErrorResponse(res, error);
+  }
+});
+
+app.get('/api/results/official', auth, roles('STUDENT'), async (req, res) => {
+  if (!normalizeStudentId(req.user.studentId)) {
+    return res.status(400).json({ error: 'A Student ID is not configured for this account.' });
+  }
+
+  const latestImport = await db.resultImport.findFirst({
+    where: { status: 'IMPORTED' },
+    orderBy: { uploadedAt: 'desc' },
+    select: { id: true, fileName: true, uploadedAt: true },
+  });
+  if (!latestImport) {
+    return res.json({
+      found: false,
+      message: 'Your result was not found in the currently uploaded university result document.',
+    });
+  }
+
+  const records = await db.universityResult.findMany({
+    where: {
+      ...getAuthenticatedStudentResultFilter(latestImport.id, req.user.studentId),
+    },
+    orderBy: [{ semester: 'asc' }, { academicYear: 'asc' }, { courseCode: 'asc' }, { courseTitle: 'asc' }],
+  });
+  if (!records.length) {
+    return res.json({
+      found: false,
+      message: 'Your result was not found in the currently uploaded university result document.',
+    });
+  }
+
+  const semesterGroups = new Map();
+  for (const record of records) {
+    const key = `${record.semester ?? ''}|${record.academicYear ?? ''}`;
+    const group = semesterGroups.get(key) ?? {
+      semester: record.semester,
+      academicYear: record.academicYear,
+      records: [],
+    };
+    group.records.push(record);
+    semesterGroups.set(key, group);
+  }
+
+  const semesterSummaries = [...semesterGroups.values()].map((group) => {
+    const providedGpa = uniqueProvidedValue(group.records, 'gpa');
+    const providedCgpa = uniqueProvidedValue(group.records, 'cgpa');
+    return {
+      semester: group.semester,
+      academicYear: group.academicYear,
+      gpa: providedGpa ?? (group.records.some((record) => record.gpa !== null) ? null : calculateGpa(group.records)),
+      cgpa: providedCgpa,
+    };
+  });
+  const providedGpa = uniqueProvidedValue(records, 'gpa');
+  const providedCgpa = uniqueProvidedValue(records, 'cgpa');
+  const summaryGpa = providedGpa ?? (
+    records.some((record) => record.gpa !== null) || semesterGroups.size > 1
+      ? null
+      : calculateGpa(records)
+  );
+  const summaryCgpa = providedCgpa ?? (
+    records.some((record) => record.cgpa !== null) ? null : calculateGpa(records)
+  );
+  const resultSummary = calculateResultSummary(records);
+
+  return res.json({
+    found: true,
+    student: {
+      studentId: records[0].studentId,
+      name: records.find((record) => record.studentName)?.studentName ?? req.user.name,
+    },
+    records: records.map((record) => ({
+      courseCode: record.courseCode,
+      courseTitle: record.courseTitle,
+      credits: record.credits,
+      marks: record.marks,
+      grade: record.grade,
+      gradePoint: record.gradePoint,
+      semester: record.semester,
+      academicYear: record.academicYear,
+    })),
+    semesters: semesterSummaries,
+    summary: {
+      gpa: summaryGpa,
+      cgpa: summaryCgpa,
+      totalQualityPoints: resultSummary.totalQualityPoints,
+      totalAttemptedCredits: resultSummary.attemptedCredits,
+    },
+    source: {
+      label: 'Imported from university-provided result PDF',
+      fileName: latestImport.fileName,
+      uploadedAt: latestImport.uploadedAt,
+    },
+  });
+});
+
 app.get('/api/results',auth,async(req,res)=>res.json(await db.result.findMany({where:{studentId:req.user.id}})));
 app.get('/api/teachers',auth,async(_,res)=>res.json(await db.user.findMany({where:{role:'TEACHER'},select:{id:true,name:true,department:true,email:true}})));
 app.get('/api/resources',auth,async(_,res)=>res.json(await db.resource.findMany()));
@@ -98,5 +301,3 @@ app.get('/api/admin/users',auth,roles('ADMIN'),async(_,res)=>res.json(await db.u
 app.use((err,req,res,next)=>{console.error(err);res.status(500).json({error:'Internal server error'})});
 const port=process.env.PORT||4000; app.listen(port,()=>console.log(`Portal API running on http://localhost:${port}`));
 import { randomUUID } from 'node:crypto';
-
-
