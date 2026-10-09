@@ -16,7 +16,7 @@ Node.js 20+, npm, PostgreSQL 14+.
 ## Run locally
 1. Install Node.js and PostgreSQL.
 2. Open this folder in VS Code.
-3. Create `backend/.env` by copying `.env.example` (`Copy-Item .env.example .env` in PowerShell, or `cp .env.example .env` in macOS/Linux), and configure the database connection.
+3. Create `backend/.env` by copying `.env.example` (`Copy-Item .env.example .env` in PowerShell, or `cp .env.example .env` in macOS/Linux), configure the database connection, and replace `JWT_SECRET` with a random value. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
 4. In a terminal, install and start the backend:
    ```bash
    cd backend
@@ -34,10 +34,14 @@ Node.js 20+, npm, PostgreSQL 14+.
    ```
 6. Visit http://localhost:5173
 
+The Vite development server proxies `/api` requests to `http://localhost:4000` by default, so login also works when the frontend is opened from another device on the same network. For a separately hosted API, set `VITE_API_URL` in `frontend/.env` to the API server's origin (without `/api`) and set `FRONTEND_URL` in `backend/.env` to the frontend's origin before building/deploying.
+
 Demo login (after seeding):
 - Admin: admin@university.test / Admin123!
 - Teacher: teacher@university.test / Teacher123!
 - Student: student@university.test / Student123!
+
+Users can also create a student account from the login page with a valid email address and a password of at least 8 characters. New sign-ups always receive the STUDENT role.
 
 Change demo passwords and JWT_SECRET before deployment.
 

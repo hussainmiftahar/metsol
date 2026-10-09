@@ -3,8 +3,42 @@ import express from 'express'; import cors from 'cors'; import helmet from 'helm
 const app=express(), db=new PrismaClient(); app.use(helmet()); app.use(cors({origin:process.env.FRONTEND_URL||'http://localhost:5173'})); app.use(express.json({limit:'2mb'})); app.use(rateLimit({windowMs:15*60*1000,limit:300}));
 const auth=async(req,res,next)=>{try{const token=(req.headers.authorization||'').replace(/^Bearer /,''); const p=jwt.verify(token,process.env.JWT_SECRET); req.user=await db.user.findUnique({where:{id:p.sub},select:{id:true,name:true,email:true,role:true,studentId:true,department:true}}); if(!req.user)return res.sendStatus(401); next();}catch{return res.sendStatus(401)}};
 const roles=(...r)=>(req,res,next)=>r.includes(req.user?.role)?next():res.sendStatus(403);
+const jwtSecret=process.env.JWT_SECRET;
+if(!jwtSecret||jwtSecret.length<32||jwtSecret.startsWith('replace-this-'))throw new Error('JWT_SECRET must be set to a random string of at least 32 characters. See backend/.env.example.');
 app.get('/api/health',(_,res)=>res.json({ok:true,service:'Smart University Portal API'}));
-app.post('/api/auth/login',async(req,res)=>{const {email,password}=req.body||{}; const u=await db.user.findUnique({where:{email}}); if(!u||!await bcrypt.compare(password||'',u.passwordHash))return res.status(401).json({error:'Invalid email or password'}); const token=jwt.sign({sub:u.id},process.env.JWT_SECRET,{expiresIn:'12h'}); res.json({token,user:{id:u.id,name:u.name,email:u.email,role:u.role,studentId:u.studentId,department:u.department}})});
+app.post('/api/auth/login',async(req,res)=>{
+  const {email,password}=req.body||{};
+  if(typeof email!=='string'||typeof password!=='string'||!email.trim()||!password||email.length>320||password.length>1024)
+    return res.status(400).json({error:'Enter a valid email address and password'});
+  const u=await db.user.findFirst({where:{email:{equals:email.trim(),mode:'insensitive'}}});
+  if(!u||!await bcrypt.compare(password,u.passwordHash))return res.status(401).json({error:'Invalid email or password'});
+  const token=jwt.sign({sub:u.id},jwtSecret,{expiresIn:'12h'});
+  res.json({token,user:{id:u.id,name:u.name,email:u.email,role:u.role,studentId:u.studentId,department:u.department}});
+});
+app.post('/api/auth/register',async(req,res)=>{
+  const {name,email,password}=req.body||{};
+  const normalizedName=typeof name==='string'?name.trim():'';
+  const normalizedEmail=typeof email==='string'?email.trim().toLowerCase():'';
+  if(!normalizedName||normalizedName.length>100||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)||normalizedEmail.length>320)
+    return res.status(400).json({error:'Enter your name and a valid email address'});
+  if(typeof password!=='string'||password.length<8||password.length>1024)
+    return res.status(400).json({error:'Password must be between 8 and 1024 characters'});
+  const existingUser=await db.user.findFirst({where:{email:{equals:normalizedEmail,mode:'insensitive'}}});
+  if(existingUser)return res.status(409).json({error:'An account with this email already exists. Sign in instead.'});
+  try {
+    const user=await db.user.create({data:{
+      name:normalizedName,
+      email:normalizedEmail,
+      passwordHash:await bcrypt.hash(password,12),
+      role:'STUDENT'
+    }});
+    const token=jwt.sign({sub:user.id},jwtSecret,{expiresIn:'12h'});
+    return res.status(201).json({token,user:{id:user.id,name:user.name,email:user.email,role:user.role,studentId:user.studentId,department:user.department}});
+  } catch(error) {
+    if(error?.code==='P2002')return res.status(409).json({error:'An account with this email already exists. Sign in instead.'});
+    throw error;
+  }
+});
 app.get('/api/me',auth,(req,res)=>res.json(req.user));
 app.get('/api/dashboard',auth,async(req,res)=>{const [courses,notices,assignments,payments]=await Promise.all([db.courseEnrollment.count({where:{userId:req.user.id}}),db.notice.findMany({orderBy:{createdAt:'desc'},take:5}),db.assignment.findMany({take:5,orderBy:{dueAt:'asc'}}),db.payment.findMany({where:{studentId:req.user.id},orderBy:{createdAt:'desc'},take:5})]);res.json({courses,notices,assignments,payments})});
 app.get('/api/courses',auth,async(_,res)=>res.json(await db.course.findMany({include:{enrollments:true}})));
@@ -98,5 +132,3 @@ app.get('/api/admin/users',auth,roles('ADMIN'),async(_,res)=>res.json(await db.u
 app.use((err,req,res,next)=>{console.error(err);res.status(500).json({error:'Internal server error'})});
 const port=process.env.PORT||4000; app.listen(port,()=>console.log(`Portal API running on http://localhost:${port}`));
 import { randomUUID } from 'node:crypto';
-
-

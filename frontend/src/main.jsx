@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
+import Login from "./Login.jsx";
+import { apiFetch, clearAuthToken, getAuthToken } from "./api.js";
 import "./style.css";
 
 const courses = [
@@ -426,6 +428,67 @@ const facultySources = [
 function App() {
   const [active, setActive] = useState("Dashboard");
   const [dark, setDark] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authMessage, setAuthMessage] = useState("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      try {
+        if (!getAuthToken()) return;
+
+        const response = await apiFetch("/api/me");
+        if (!response.ok) {
+          if (response.status === 401) {
+            clearAuthToken();
+            if (!cancelled) setAuthMessage("Your session expired. Please sign in again.");
+            return;
+          }
+          throw new Error("Unable to verify your session. Check your connection and try again.");
+        }
+
+        const currentUser = await response.json();
+        if (!cancelled) setUser(currentUser);
+      } catch (error) {
+        if (!cancelled) setAuthMessage(error.message || "Unable to restore your session.");
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    }
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleLogout() {
+    try {
+      clearAuthToken();
+    } catch (error) {
+      setAuthMessage(error.message);
+    }
+    setUser(null);
+    setActive("Dashboard");
+  }
+
+  if (authLoading) {
+    return <div className="login-page" role="status">Restoring your session...</div>;
+  }
+
+  if (!user) {
+    return (
+      <Login
+        message={authMessage}
+        onLogin={(loggedInUser) => {
+          setUser(loggedInUser);
+          setAuthMessage("");
+        }}
+      />
+    );
+  }
 
   const menu = [
     ["Dashboard", "⌂"],
@@ -454,10 +517,10 @@ function App() {
         </div>
 
         <div className="profile-mini">
-          <div className="avatar">MK</div>
+          <div className="avatar">{user.name?.slice(0, 2).toUpperCase() || "U"}</div>
           <div>
-            <strong>Student</strong>
-            <span>ID: 241-115-169</span>
+            <strong>{user.name}</strong>
+            <span>{user.studentId || user.role}</span>
           </div>
         </div>
 
@@ -484,6 +547,10 @@ function App() {
             <span>⚙</span>
             Settings
           </button>
+          <button className="nav-item" onClick={handleLogout}>
+            <span>↪</span>
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -497,10 +564,10 @@ function App() {
           <div className="top-actions">
             <button className="icon-button">🔔</button>
             <div className="top-profile">
-              <div className="avatar small">MK</div>
+              <div className="avatar small">{user.name?.slice(0, 2).toUpperCase() || "U"}</div>
               <div>
-                <strong>Student</strong>
-                <span>Computer Science</span>
+                <strong>{user.name}</strong>
+                <span>{user.department || user.role}</span>
               </div>
             </div>
           </div>
@@ -1089,10 +1156,10 @@ function Payments() {
       }
     
       try {
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
     
-        const response = await fetch(
-          "http://localhost:4000/api/payments/initiate",
+        const response = await apiFetch(
+          "/api/payments/initiate",
           {
             method: "POST",
             headers: {
