@@ -81,6 +81,11 @@ export default function Login({ onLogin, message = "" }) {
 
         {message && <p className="login-message" role="status">{message}</p>}
         {error && <p className="login-error" role="alert">{error}</p>}
+        {!isRegistering && (
+          <p className="login-message">
+            First time here? Enter any valid email and a password with at least 8 characters. Your student account will be created automatically.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit}>
           {isRegistering && (

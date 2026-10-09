@@ -10,10 +10,28 @@ app.post('/api/auth/login',async(req,res)=>{
   const {email,password}=req.body||{};
   if(typeof email!=='string'||typeof password!=='string'||!email.trim()||!password||email.length>320||password.length>1024)
     return res.status(400).json({error:'Enter a valid email address and password'});
-  const u=await db.user.findFirst({where:{email:{equals:email.trim(),mode:'insensitive'}}});
-  if(!u||!await bcrypt.compare(password,u.passwordHash))return res.status(401).json({error:'Invalid email or password'});
-  const token=jwt.sign({sub:u.id},jwtSecret,{expiresIn:'12h'});
-  res.json({token,user:{id:u.id,name:u.name,email:u.email,role:u.role,studentId:u.studentId,department:u.department}});
+  let user=await db.user.findFirst({where:{email:{equals:normalizedEmail,mode:'insensitive'}}});
+  let created=false;
+  if(!user){
+    if(password.length<8)return res.status(400).json({error:'For a new account, choose a password with at least 8 characters'});
+    try {
+      user=await db.user.create({data:{
+        name:normalizedEmail.split('@')[0],
+        email:normalizedEmail,
+        passwordHash:await bcrypt.hash(password,12),
+        role:'STUDENT'
+      }});
+      created=true;
+    } catch(error) {
+      if(error?.code!=='P2002')throw error;
+      user=await db.user.findFirst({where:{email:{equals:normalizedEmail,mode:'insensitive'}}});
+      if(!user||!await bcrypt.compare(password,user.passwordHash))return res.status(401).json({error:'Invalid email or password'});
+    }
+  } else if(!await bcrypt.compare(password,user.passwordHash)) {
+    return res.status(401).json({error:'Invalid email or password'});
+  }
+  const token=jwt.sign({sub:user.id},jwtSecret,{expiresIn:'12h'});
+  res.status(created?201:200).json({token,created,user:{id:user.id,name:user.name,email:user.email,role:user.role,studentId:user.studentId,department:user.department}});
 });
 app.post('/api/auth/register',async(req,res)=>{
   const {name,email,password}=req.body||{};
