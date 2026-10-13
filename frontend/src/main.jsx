@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { calculateResultSummary, getGradeFromScore, getGradePointForGrade, isEarnedCredit, SPECIAL_GRADES } from "../../shared/grading.js";
 import Login from "./Login.jsx";
-import { apiFetch, apiUrl, clearAuthToken, getAuthToken } from "./api.js";
+import { apiFetch, apiUrl, clearAuthToken, disconnectGoogleClassroom, getAuthToken, getGoogleClassroomStatus, redirectToGoogleClassroomConnect } from "./api.js";
 import "./style.css";
 
 const GRADE_OPTIONS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "I", "W", "S", "AB"];
@@ -517,6 +517,7 @@ function App() {
     ["Courses", "▣"],
     ["Teachers", "♙"],
     ["Assignments", "✓"],
+    ["Google Classroom", "▣"],
     ["Payments", "৳"],
     ["Attendance", "◷"],
     ["Results", "▤"],
@@ -599,6 +600,7 @@ function App() {
         {active === "Courses" && <Courses />}
         {active === "Teachers" && <Teachers />}
         {active === "Assignments" && <Assignments />}
+        {active === "Google Classroom" && <GoogleClassroom />}
         {active === "Payments" && <Payments />}
         {active === "Attendance" && <Attendance />}
         {active === "Results" && <Results key={user.role} />}
@@ -609,6 +611,84 @@ function App() {
         {active === "AI Assistant" && <Assistant />}
       </main>
     </div>
+  );
+}
+
+function GoogleClassroom() {
+  const [status, setStatus] = useState({ connected: false });
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
+  const refreshStatus = async () => {
+    try {
+      setLoading(true);
+      const data = await getGoogleClassroomStatus();
+      setStatus(data || { connected: false });
+      setMessage("");
+    } catch (error) {
+      setMessage(error.message || "Unable to load Google Classroom status.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const connectionState = query.get("googleClassroom");
+    if (connectionState === "connected") {
+      setMessage("Google Classroom connected successfully.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (connectionState === "error") {
+      setMessage("Google Classroom connection failed. Check your Google OAuth settings and try again.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    refreshStatus();
+  }, []);
+
+  const handleDisconnect = async () => {
+    try {
+      setMessage("Disconnecting Google Classroom...");
+      await disconnectGoogleClassroom();
+      setStatus({ connected: false });
+      setMessage("Google Classroom disconnected successfully.");
+    } catch (error) {
+      setMessage(error.message || "Unable to disconnect Google Classroom.");
+    }
+  };
+
+  return (
+    <section className="card" style={{ maxWidth: 720 }}>
+      <div className="page-intro">
+        <h2>Google Classroom</h2>
+        <p>Connect your Google account to sync course work and assignments with the portal.</p>
+      </div>
+
+      {message && <div className="form-message" style={{ marginBottom: 16 }}>{message}</div>}
+
+      {loading ? (
+        <p>Loading Classroom connection status...</p>
+      ) : status.connected ? (
+        <div>
+          <div className="course-row" style={{ marginBottom: 20 }}>
+            <div className="course-icon">✅</div>
+            <div className="course-info">
+              <strong>Connected</strong>
+              <span>{status.email || "Google account linked"}</span>
+            </div>
+          </div>
+          <div className="quick-grid" style={{ justifyContent: "flex-start" }}>
+            <button className="outline-button" onClick={handleDisconnect}>Disconnect</button>
+            <button className="primary-button" onClick={() => redirectToGoogleClassroomConnect()}>Reconnect</button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p>Google Classroom is not connected yet.</p>
+          <button className="primary-button" onClick={() => redirectToGoogleClassroomConnect()}>Connect Google Classroom</button>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -717,6 +797,7 @@ function Dashboard({ setActive }) {
           <div className="quick-grid">
             <button onClick={() => setActive("Payments")}>💳<span>Pay Fees</span></button>
             <button onClick={() => setActive("Assignments")}>📝<span>Assignments</span></button>
+            <button onClick={() => setActive("Google Classroom")}>📚<span>Classroom</span></button>
             <button onClick={() => setActive("Results")}>📊<span>View Results</span></button>
             <button onClick={() => setActive("AI Assistant")}>✦<span>Ask AI</span></button>
           </div>

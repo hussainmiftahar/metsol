@@ -52,6 +52,12 @@ The current parser is deliberately conservative: it supports text-based PDFs wit
 
 Student results are fetched using the Student ID attached to the authenticated backend account; the endpoint does not accept a student ID from the browser. Admin upload and import routes enforce the ADMIN role server-side. Run backend tests with `npm test` from `backend`.
 
+### Sample result PDF for testing
+A ready-to-import sample result file is included at `backend/test-data/sample-result.pdf`. Use it to quickly verify the result upload flow in the admin Results screen before testing with a real university PDF.
+
+## Google Classroom integration status
+This branch includes a working backend-and-UI scaffold for Google Classroom connectivity, but the live Google OAuth flow still requires a real Google Cloud OAuth client configuration before it can complete the connection in a browser. The app is structured to keep the existing student portal and JWT auth flow intact while exposing Classroom connect, callback, status, and disconnect routes. The code is intentionally left as a safe integration scaffold until real credentials are added.
+
 ## External integrations
 - AI: Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in backend/.env. Without a key, EduAI returns clearly labelled demo responses.
 - bKash/Nagad: Set merchant credentials and implement/enable the relevant official merchant API credentials and callback URLs. The included payment route creates a PENDING transaction only; it never marks a payment successful without verified gateway confirmation. Never collect or store a user's mobile wallet PIN/OTP.

@@ -32,6 +32,34 @@ export function clearAuthToken() {
   }
 }
 
+export function redirectToGoogleClassroomConnect() {
+  window.location.href = apiUrl("/api/google/classroom/connect");
+}
+
+export async function getGoogleClassroomStatus() {
+  const response = await apiFetch("/api/google/classroom/status");
+  if (!response.ok) {
+    throw new Error("Unable to read Google Classroom connection status.");
+  }
+  return response.json();
+}
+
+export async function disconnectGoogleClassroom() {
+  const response = await apiFetch("/api/google/classroom/disconnect", { method: "POST" });
+  if (!response.ok) {
+    throw new Error("Unable to disconnect Google Classroom.");
+  }
+  return response.json();
+}
+
+export async function syncGoogleClassroomAssignments() {
+  const response = await apiFetch("/api/google/classroom/sync", { method: "POST" });
+  if (!response.ok) {
+    throw new Error("Unable to sync Google Classroom assignments.");
+  }
+  return response.json();
+}
+
 export async function apiFetch(path, options = {}) {
   const headers = new Headers(options.headers);
   const token = getAuthToken();

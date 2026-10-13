@@ -1,0 +1,46 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 932 >>
+stream
+BT /F1 18 Tf 1 0 0 1 72 760 Tm (Smart University Result Sample) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 702 Tm (Student ID: 20231012) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 684 Tm (Student Name: Rahman Hossain) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 666 Tm (Semester: Fall 2026) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 648 Tm () Tj ET
+BT /F1 14 Tf 1 0 0 1 72 630 Tm (Course Code  Credits  Marks  Grade) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 612 Tm (CSE 310     3        88     A) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 594 Tm (CSE 320     3        82     A-) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 576 Tm (CSE 330     3        90     A+) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 558 Tm (CSE 340     3        76     B+) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 540 Tm (MGT 210     3        84     A-) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 522 Tm (ENG 101     2        91     A) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 504 Tm () Tj ET
+BT /F1 14 Tf 1 0 0 1 72 486 Tm (CGPA: 3.82) Tj ET
+BT /F1 14 Tf 1 0 0 1 72 468 Tm (Status: Passed) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001224 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1294
+%%EOF
