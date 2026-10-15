@@ -26,6 +26,41 @@ const calculateCourseRowsSummary = (courseRows) => {
   return calculateResultSummary(courseRows);
 };
 
+const getPrintFileName = (prefix, description) => {
+  const safeDescription = description
+    .normalize("NFKD")
+    .replace(/[^\w-]+/gu, "_")
+    .replace(/^_+|_+$/gu, "")
+    .slice(0, 60);
+  return `${prefix}${safeDescription ? `_${safeDescription}` : ""}.pdf`;
+};
+
+const printResult = (printRoot, fileName, setMessage) => {
+  if (!printRoot || typeof window.print !== "function") {
+    setMessage("Printing is not available in this browser.");
+    return;
+  }
+
+  const previousTitle = document.title;
+  const restorePrintState = () => {
+    document.title = previousTitle;
+    document.body.classList.remove("printing-result");
+    printRoot.removeAttribute("data-print-active");
+  };
+
+  try {
+    document.body.classList.add("printing-result");
+    printRoot.setAttribute("data-print-active", "true");
+    document.title = fileName;
+    window.addEventListener("afterprint", restorePrintState, { once: true });
+    window.print();
+    setMessage(`In the print dialog, choose “Save as PDF”. Suggested filename: ${fileName}`);
+  } catch {
+    restorePrintState();
+    setMessage("Unable to open the print dialog. Check your browser settings and try again.");
+  }
+};
+
 const courses = [
   { code: "CSE 310", title: "Artificial Intelligence", teacher: "Dr. Rahman", department: "Department of Computer Science & Engineering", credits: 3, progress: 72 },
   { code: "CSE 320", title: "Database Management", teacher: "Prof. Karim", department: "Department of Computer Science & Engineering", credits: 3, progress: 84 },
@@ -603,7 +638,7 @@ function App() {
         {active === "Google Classroom" && <GoogleClassroom />}
         {active === "Payments" && <Payments />}
         {active === "Attendance" && <Attendance />}
-        {active === "Results" && <Results key={user.role} />}
+        {active === "Results" && <Results key={user.role} user={user} />}
         {active === "Notices" && <Notices />}
         {active === "Resources" && <Resources />}
         {active === "Quiz" && <Quiz />}
@@ -1428,28 +1463,20 @@ function Attendance() {
   );
 }
 
-function Results() {
-  const results = [
-    ["Artificial Intelligence", "A", "4.00", "3"],
-    ["Database Management", "A-", "3.70", "3"],
-    ["Data Visualization", "B+", "3.30", "3"],
-    ["Software Engineering", "A", "4.00", "3"],
-  ];
-
-  const [courseRows, setCourseRows] = useState([
-    { id: 1, name: "Artificial Intelligence", credit: 3, grade: "A+" },
-    { id: 2, name: "Database Management", credit: 3, grade: "A-" },
-  ]);
-  const [scoreInput, setScoreInput] = useState(84);
+function Results({ user }) {
+  const [courseRows, setCourseRows] = useState([{ id: 1, name: "", credit: "", grade: "" }]);
+  const [scoreInput, setScoreInput] = useState("");
   const [courseScoreInputs, setCourseScoreInputs] = useState({
-    midterm: 25,
-    classTest: 18,
-    attendance: 9,
-    finalExam: 32,
+    midterm: "",
+    classTest: "",
+    attendance: "",
+    finalExam: "",
   });
   const [validationMessage, setValidationMessage] = useState("");
-
-  const summary = calculateCourseRowsSummary(courseRows);
+  const [calculatedSummary, setCalculatedSummary] = useState(null);
+  const [officialResult, setOfficialResult] = useState(null);
+  const [calculatorPrintMessage, setCalculatorPrintMessage] = useState("");
+  const calculatorPrintRef = useRef(null);
 
   const updateCourseRow = (id, field, value) => {
     setCourseRows((previousRows) =>
@@ -1459,19 +1486,8 @@ function Results() {
         return nextRow;
       })
     );
-
+    setCalculatedSummary(null);
     setValidationMessage("");
-  };
-
-  const handleCreditChange = (id, value) => {
-    const numericValue = value === "" ? "" : Number(value);
-
-    if (value !== "" && (!Number.isFinite(numericValue) || numericValue <= 0)) {
-      setValidationMessage("Credit hours must be a positive number.");
-      return;
-    }
-
-    updateCourseRow(id, "credit", value);
   };
 
   const addCourseRow = () => {
@@ -1479,6 +1495,8 @@ function Results() {
       ...previousRows,
       { id: Date.now(), name: "", credit: "", grade: "" },
     ]);
+    setCalculatedSummary(null);
+    setValidationMessage("");
   };
 
   const removeCourseRow = (id) => {
@@ -1488,6 +1506,8 @@ function Results() {
       }
       return previousRows.filter((row) => row.id !== id);
     });
+    setCalculatedSummary(null);
+    setValidationMessage("");
   };
 
   const scoreResult = (() => {
@@ -1495,7 +1515,7 @@ function Results() {
 
     const numericScore = Number(scoreInput);
     if (!Number.isFinite(numericScore)) {
-      return { error: "Score must be a number between 0 and 100." };
+      return { error: "Enter a score between 0 and 100." };
     }
     if (numericScore < 0 || numericScore > 100) {
       return { error: "Score must be between 0 and 100." };
@@ -1504,8 +1524,21 @@ function Results() {
     return getGradeFromScore(numericScore);
   })();
 
-  const courseScoreTotal = Object.values(courseScoreInputs).reduce((sum, value) => sum + Number(value || 0), 0);
-  const courseScoreResult = getGradeFromScore(courseScoreTotal);
+  const scoreLimits = { midterm: 30, classTest: 20, attendance: 10, finalExam: 40 };
+  const scoreFieldsComplete = Object.values(courseScoreInputs).every((value) => value !== "");
+  const courseScoreTotal = scoreFieldsComplete
+    ? Object.values(courseScoreInputs).reduce((sum, value) => sum + Number(value), 0)
+    : null;
+  const courseScoreError = Object.entries(courseScoreInputs).some(([field, value]) => (
+    value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > scoreLimits[field])
+  ))
+    ? "Enter a valid score within each assessment's maximum."
+    : courseScoreTotal !== null && courseScoreTotal > 100
+      ? "The total course score cannot exceed 100."
+      : "";
+  const courseScoreResult = courseScoreTotal !== null && !courseScoreError
+    ? getGradeFromScore(courseScoreTotal)
+    : null;
 
   const summaryRows = courseRows.map((row) => {
     const computed = calculateCourseSummary(row);
@@ -1514,67 +1547,115 @@ function Results() {
       ...computed,
     };
   });
+  const summary = calculatedSummary;
+
+  const calculateSemesterGpa = () => {
+    for (const [index, row] of courseRows.entries()) {
+      if (!row.name.trim()) {
+        setValidationMessage(`Enter a course name for subject ${index + 1}.`);
+        return;
+      }
+
+      const credit = Number(row.credit);
+      if (row.credit === "" || !Number.isFinite(credit) || credit <= 0) {
+        setValidationMessage(`Enter positive credit hours for ${row.name.trim()}.`);
+        return;
+      }
+
+      if (!GRADE_OPTIONS.includes(row.grade)) {
+        setValidationMessage(`Select a supported grade for ${row.name.trim()}.`);
+        return;
+      }
+    }
+
+    setCalculatedSummary(calculateCourseRowsSummary(courseRows));
+    setValidationMessage("");
+    setCalculatorPrintMessage("");
+  };
+
+  const resetCalculator = () => {
+    setCourseRows([{ id: Date.now(), name: "", credit: "", grade: "" }]);
+    setCalculatedSummary(null);
+    setValidationMessage("");
+    setCalculatorPrintMessage("");
+  };
+
+  const printCalculatorResult = () => {
+    const fileName = getPrintFileName("GPA_Calculation", new Date().toISOString().slice(0, 10));
+    printResult(calculatorPrintRef.current, fileName, setCalculatorPrintMessage);
+  };
+  const displaySemesterGpa = summary ? Number(summary.semesterGpa).toFixed(2) : "—";
+  const calculatorPrintDate = new Date().toLocaleDateString();
 
   return (
-    <>
-      <div className="result-summary">
-        <div>
-          <span>Current CGPA</span>
-          <strong>{summary.semesterGpa > 0 ? Number(summary.semesterGpa).toFixed(2) : "0.00"}</strong>
+    <div className="results-page">
+      <section className="results-hero" id="result-overview">
+        <div className="results-hero-copy">
+          <span className="results-eyebrow">ACADEMIC RECORD</span>
+          <h2>Academic Results</h2>
+          <p>Review available university results, calculate a semester GPA, and print or save a result as a PDF.</p>
+          <nav className="results-section-nav" aria-label="Result sections">
+            <a href="#official-result">Official result</a>
+            <a href="#gpa-calculator">GPA calculator</a>
+          </nav>
         </div>
-        <div>
-          <span>Completed Credits</span>
-          <strong>{summary.earnedCredits > 0 ? Number(summary.earnedCredits).toFixed(0) : "0"}</strong>
-        </div>
-        <div>
-          <span>Semester</span>
-          <strong>8th</strong>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Academic Results</h3>
-
-        <div className="table">
-          <div className="table-head">
-            <span>Course</span>
-            <span>Grade</span>
-            <span>Grade Point</span>
-            <span>Credits</span>
-          </div>
-
-          {results.map((r) => (
-            <div className="table-row" key={r[0]}>
-              <strong>{r[0]}</strong>
-              <span>{r[1]}</span>
-              <span>{r[2]}</span>
-              <span>{r[3]}</span>
+        {user?.role === "STUDENT" && (
+          <div className="results-student-card">
+            <span className="results-student-avatar" aria-hidden="true">{user.name?.slice(0, 1).toUpperCase() || "S"}</span>
+            <div>
+              <strong>{user.name || "Signed-in student"}</strong>
+              {user.studentId && <span>Student ID · {user.studentId}</span>}
+              {user.department && <span>{user.department}</span>}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        )}
+      </section>
 
-      <OfficialUniversityResult />
+      <section className="results-overview" aria-label="Academic result overview">
+        <article className="result-overview-card result-overview-primary">
+          <span>{officialResult?.summary?.gpaSource === "university" ? "University-reported GPA" : officialResult?.summary?.gpaSource === "calculated" ? "GPA from imported grades" : "Official GPA"}</span>
+          <strong>{officialResult?.found && officialResult.summary.gpa !== null ? Number(officialResult.summary.gpa).toFixed(2) : "—"}</strong>
+          <small>{officialResult?.found ? officialResult.summary.gpaSource === "university" ? "Reported in the university PDF" : officialResult.summary.gpaSource === "calculated" ? "Calculated from imported course grades" : "No unambiguous GPA is available in the imported result" : "Available when an official result is found"}</small>
+        </article>
+        <article className="result-overview-card">
+          <span>{officialResult?.summary?.cgpaSource === "university" ? "University-reported CGPA" : officialResult?.summary?.cgpaSource === "calculated" ? "CGPA from imported grades" : "Official CGPA"}</span>
+          <strong>{officialResult?.found && officialResult.summary.cgpa !== null ? Number(officialResult.summary.cgpa).toFixed(2) : "—"}</strong>
+          <small>{officialResult?.found ? officialResult.summary.cgpaSource === "university" ? "Reported in the university PDF" : officialResult.summary.cgpaSource === "calculated" ? "Calculated from imported course grades" : "No unambiguous CGPA is available in the imported result" : "Not available until an official result is found"}</small>
+        </article>
+        <article className="result-overview-card">
+          <span>Attempted credits</span>
+          <strong>{officialResult?.found ? Number(officialResult.summary.totalAttemptedCredits).toFixed(2) : "—"}</strong>
+          <small>{officialResult?.found ? `${officialResult.records.length} course records in the imported result` : "Shown only when result data is available"}</small>
+        </article>
+        <article className="result-overview-card">
+          <span>Result status</span>
+          <strong className="result-status-value">{officialResult?.found ? "Available" : officialResult?.found === false ? "Not found" : officialResult ? "Unavailable" : "Checking"}</strong>
+          <small>{officialResult?.found ? officialResult.source.label : officialResult?.found === false ? "No matching published result was found" : "Official records are never estimated or fabricated"}</small>
+        </article>
+      </section>
 
-      <div className="card calculator-card">
+      <OfficialUniversityResult onOfficialResult={setOfficialResult} />
+
+      <section className="card calculator-card" id="gpa-calculator">
         <div className="card-header result-calculator-header">
           <div>
-            <h3>Result Calculator</h3>
-            <span>Official Metropolitan University grading policy</span>
+            <span className="results-eyebrow">ESTIMATE</span>
+            <h3>Semester GPA Calculator</h3>
+            <span>Enter your course grades to estimate semester GPA using the Metropolitan University grading policy. This is not an official university result.</span>
           </div>
         </div>
 
         <div className="calculator-grid">
           <div className="calculator-body">
-            <div className="calculator-table">
+            <div className="calculator-table" role="table" aria-label="Semester GPA course inputs">
               <div className="calculator-table-head">
-                <span>Course Name</span>
-                <span>Credit Hours</span>
-                <span>Grade</span>
-                <span>Grade Point</span>
-                <span>Quality Point</span>
-                <span>Earned Credit</span>
-                <span></span>
+                <span role="columnheader">Course Name</span>
+                <span role="columnheader">Credit Hours</span>
+                <span role="columnheader">Grade</span>
+                <span role="columnheader">Grade Point</span>
+                <span role="columnheader">Quality Point</span>
+                <span role="columnheader">Earned Credit</span>
+                <span role="columnheader">Remove</span>
               </div>
 
               {summaryRows.map((row) => {
@@ -1584,33 +1665,33 @@ function Results() {
                 const earned = computed.earned ? "Yes" : "No";
 
                 return (
-                  <div className="calculator-table-row" key={row.id}>
+                  <div className="calculator-table-row" key={row.id} role="row">
                     <input
                       type="text"
                       value={row.name}
                       onChange={(event) => updateCourseRow(row.id, "name", event.target.value)}
                       placeholder="Course name"
+                      aria-label="Course name"
                     />
                     <input
                       type="number"
-                      min="1"
+                      min="0.01"
                       step="0.5"
                       value={row.credit}
-                      onChange={(event) => handleCreditChange(row.id, event.target.value)}
+                      onChange={(event) => updateCourseRow(row.id, "credit", event.target.value)}
                       placeholder="3"
+                      aria-label="Credit hours"
                     />
-                    <select value={row.grade} onChange={(event) => updateCourseRow(row.id, "grade", event.target.value)}>
+                    <select value={row.grade} onChange={(event) => updateCourseRow(row.id, "grade", event.target.value)} aria-label="Course grade">
                       <option value="">Select grade</option>
                       {GRADE_OPTIONS.map((grade) => (
                         <option key={grade} value={grade}>{grade}</option>
                       ))}
                     </select>
-                    <span className="calculator-value">{row.grade ? Number(gradePoint).toFixed(2) : "-"}</span>
-                    <span className="calculator-value">{row.grade && Number(row.credit) > 0 ? Number(qualityPoint).toFixed(2) : "-"}</span>
-                    <span className={`calculator-value ${earned === "Yes" ? "earned" : "not-earned"}`}>
-                      {row.grade ? earned : "-"}
-                    </span>
-                    <button type="button" className="remove-row-button" onClick={() => removeCourseRow(row.id)} aria-label={`Remove ${row.name || "course"}`}>
+                    <span className="calculator-value" data-label="Grade point">{row.grade ? Number(gradePoint).toFixed(2) : "-"}</span>
+                    <span className="calculator-value" data-label="Quality point">{row.grade && Number(row.credit) > 0 ? Number(qualityPoint).toFixed(2) : "-"}</span>
+                    <span className={`calculator-value ${earned === "Yes" ? "earned" : "not-earned"}`} data-label="Earned credit">{row.grade ? earned : "-"}</span>
+                    <button type="button" className="remove-row-button" onClick={() => removeCourseRow(row.id)} aria-label={`Remove ${row.name || "course"}`} disabled={courseRows.length === 1}>
                       ×
                     </button>
                   </div>
@@ -1621,37 +1702,65 @@ function Results() {
             {validationMessage && <div className="validation-message">{validationMessage}</div>}
 
             <div className="calculator-actions">
-              <button type="button" className="primary-button" onClick={addCourseRow}>+ Add Course</button>
+              <button type="button" className="secondary-button" onClick={addCourseRow}>+ Add subject</button>
               <div className="calc-btn-stack">
-                <button type="button" className="primary-button" onClick={() => setValidationMessage("")}>Calculate Result</button>
-                <button type="button" className="secondary-button" onClick={() => setCourseRows([{ id: Date.now(), name: "", credit: "", grade: "" }])}>Reset</button>
+                {summary && <button type="button" className="secondary-button" onClick={printCalculatorResult}>Print / Save estimate as PDF</button>}
+                <button type="button" className="primary-button" onClick={calculateSemesterGpa}>Calculate GPA</button>
+                <button type="button" className="secondary-button" onClick={resetCalculator}>Reset</button>
               </div>
             </div>
 
-            <div className="summary-card">
-              <h4>Result Summary</h4>
-              <div className="summary-grid">
-                <div>
-                  <span>Semester GPA</span>
-                  <strong>{Number(summary.semesterGpa).toFixed(2)}</strong>
+            <div className="summary-card" aria-live="polite">
+              <h4>Estimated semester GPA</h4>
+              {summary ? (
+                <>
+                  <p className="calculator-result-notice">Estimate only — not an official university result.</p>
+                  <div className="summary-grid">
+                    <div><span>Semester GPA</span><strong>{displaySemesterGpa}</strong></div>
+                    <div><span>Total quality points</span><strong>{Number(summary.totalQualityPoints).toFixed(2)}</strong></div>
+                    <div><span>Attempted credits</span><strong>{Number(summary.attemptedCredits).toFixed(2)}</strong></div>
+                    <div><span>Earned credits</span><strong>{Number(summary.earnedCredits).toFixed(2)}</strong></div>
+                    <div><span>Courses</span><strong>{summary.courseCount}</strong></div>
+                  </div>
+                </>
+              ) : (
+                <p className="calculator-empty-state">Add each course, credit value, and grade, then calculate to see your estimate.</p>
+              )}
+            </div>
+            {calculatorPrintMessage && <p className="result-action-message" role="status">{calculatorPrintMessage}</p>}
+
+            <div className="calculator-print-sheet" ref={calculatorPrintRef} data-print-root>
+              <header className="result-print-header">
+                <p>Metropolitan University · Smart University Portal</p>
+                <h1>Semester GPA Estimate</h1>
+                <p>This is a student-generated estimate, not an official university result.</p>
+              </header>
+              {user?.role === "STUDENT" && (
+                <div className="result-print-student">
+                  {user.name && <p><strong>Student:</strong> {user.name}</p>}
+                  {user.studentId && <p><strong>Student ID:</strong> {user.studentId}</p>}
+                  {user.department && <p><strong>Department:</strong> {user.department}</p>}
                 </div>
-                <div>
-                  <span>Total Quality Points</span>
-                  <strong>{Number(summary.totalQualityPoints).toFixed(2)}</strong>
-                </div>
-                <div>
-                  <span>Total Attempted Credits</span>
-                  <strong>{Number(summary.attemptedCredits).toFixed(0)}</strong>
-                </div>
-                <div>
-                  <span>Total Earned Credits</span>
-                  <strong>{Number(summary.earnedCredits).toFixed(0)}</strong>
-                </div>
-                <div>
-                  <span>Number of Courses</span>
-                  <strong>{summary.courseCount}</strong>
-                </div>
-              </div>
+              )}
+              {summary && (
+                <>
+                  <table className="result-print-table">
+                    <thead><tr><th>Course</th><th>Credits</th><th>Grade</th><th>Grade point</th><th>Quality point</th></tr></thead>
+                    <tbody>{summaryRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.name}</td><td>{Number(row.credit).toFixed(2)}</td><td>{row.grade}</td>
+                        <td>{Number(row.gradePoint).toFixed(2)}</td><td>{Number(row.qualityPoint).toFixed(2)}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                  <div className="result-print-summary">
+                    <p><strong>Estimated semester GPA:</strong> {displaySemesterGpa}</p>
+                    <p><strong>Attempted credits:</strong> {Number(summary.attemptedCredits).toFixed(2)}</p>
+                    <p><strong>Earned credits:</strong> {Number(summary.earnedCredits).toFixed(2)}</p>
+                  </div>
+                </>
+              )}
+              <p className="result-print-date">Generated {calculatorPrintDate}</p>
             </div>
           </div>
 
@@ -1668,6 +1777,7 @@ function Results() {
                   value={scoreInput}
                   onChange={(event) => setScoreInput(event.target.value)}
                   placeholder="84"
+                  aria-label="Score out of 100"
                 />
               </label>
 
@@ -1694,25 +1804,25 @@ function Results() {
               <div className="score-fields">
                 <label>
                   <span>Mid-term Exam</span>
-                  <input type="number" min="0" max="30" value={courseScoreInputs.midterm} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, midterm: event.target.value }))} />
+                  <input type="number" min="0" max="30" value={courseScoreInputs.midterm} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, midterm: event.target.value }))} aria-label="Mid-term exam score, maximum 30" />
                 </label>
                 <label>
                   <span>Class Test</span>
-                  <input type="number" min="0" max="20" value={courseScoreInputs.classTest} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, classTest: event.target.value }))} />
+                  <input type="number" min="0" max="20" value={courseScoreInputs.classTest} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, classTest: event.target.value }))} aria-label="Class test score, maximum 20" />
                 </label>
                 <label>
                   <span>Attendance & Participation</span>
-                  <input type="number" min="0" max="10" value={courseScoreInputs.attendance} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, attendance: event.target.value }))} />
+                  <input type="number" min="0" max="10" value={courseScoreInputs.attendance} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, attendance: event.target.value }))} aria-label="Attendance and participation score, maximum 10" />
                 </label>
                 <label>
                   <span>Final Exam</span>
-                  <input type="number" min="0" max="40" value={courseScoreInputs.finalExam} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, finalExam: event.target.value }))} />
+                  <input type="number" min="0" max="40" value={courseScoreInputs.finalExam} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, finalExam: event.target.value }))} aria-label="Final exam score, maximum 40" />
                 </label>
               </div>
 
               <div className="score-total-box">
                 <span>Total Score</span>
-                <strong>{courseScoreTotal}/100</strong>
+                <strong>{courseScoreTotal === null ? "— / 100" : `${courseScoreTotal} / 100`}</strong>
               </div>
 
               {courseScoreResult && !courseScoreResult.error ? (
@@ -1727,15 +1837,16 @@ function Results() {
                   </div>
                 </div>
               ) : null}
+              {courseScoreError && <div className="validation-message" role="alert">{courseScoreError}</div>}
             </div>
           </div>
         </div>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }
 
-function OfficialUniversityResult() {
+function OfficialUniversityResult({ onOfficialResult }) {
   const [accountRole, setAccountRole] = useState("");
   const [officialResult, setOfficialResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1745,6 +1856,8 @@ function OfficialUniversityResult() {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [message, setMessage] = useState("");
   const fileInputRef = useRef(null);
+  const officialPrintRef = useRef(null);
+  const [printMessage, setPrintMessage] = useState("");
   const readJsonResponse = (response) => response.json().catch(() => ({}));
 
   const loadOfficialResult = async () => {
@@ -1752,22 +1865,28 @@ function OfficialUniversityResult() {
     const data = await readJsonResponse(response);
     if (!response.ok) throw new Error(data.error || "Unable to load your official result.");
     setOfficialResult(data);
+    onOfficialResult(data);
   };
 
   useEffect(() => {
     let active = true;
     const loadAccount = async () => {
+      let loadedRole = "";
       try {
         const response = await apiFetch("/api/me");
         const user = await readJsonResponse(response);
         if (!response.ok) throw new Error(user.error || "Sign in to view your official result.");
         if (!active) return;
-        setAccountRole(user.role || "");
+        loadedRole = user.role || "";
+        setAccountRole(loadedRole);
         if (user.role === "STUDENT") {
           await loadOfficialResult();
         }
       } catch (error) {
-        if (active) setMessage(error.message || "Unable to connect to the result service.");
+        if (active) {
+          setMessage(error.message || "Unable to connect to the result service.");
+          if (loadedRole === "STUDENT") onOfficialResult({ found: null });
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -1862,8 +1981,15 @@ function OfficialUniversityResult() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const semesterLabel = officialResult?.records
+    ? [...new Set(officialResult.records.map((record) => [record.semester, record.academicYear].filter(Boolean).join(" ")).filter(Boolean))].join("_")
+    : "";
+  const officialFileName = getPrintFileName("Official_Academic_Result", semesterLabel);
+  const printOfficialResult = () => printResult(officialPrintRef.current, officialFileName, setPrintMessage);
+  const officialPrintDate = new Date().toLocaleDateString();
+
   return (
-    <section className="card official-result-card">
+    <section className="card official-result-card" id="official-result">
       {accountRole === "ADMIN" ? (
         <>
           <div className="card-header">
@@ -1914,11 +2040,11 @@ function OfficialUniversityResult() {
           {message && <p className="result-import-message" role="status">{message}</p>}
         </>
       ) : (
-        <>
+        <div className="official-result-print-sheet" ref={officialPrintRef} data-print-root>
           <div className="card-header">
             <div>
               <h3>Official University Result</h3>
-              <span>Imported from a university-provided result PDF</span>
+              <span>Securely matched to the Student ID on your signed-in account. The university-issued PDF import is the source of this record.</span>
             </div>
           </div>
           {loading ? (
@@ -1927,6 +2053,16 @@ function OfficialUniversityResult() {
             <p className="official-result-message">{message || "Sign in as a student to view your official result."}</p>
           ) : officialResult?.found ? (
             <>
+              <div className="official-result-actions">
+                <button type="button" className="primary-button" onClick={printOfficialResult}>Print / Save as PDF</button>
+                <span>Choose “Save as PDF” in your browser’s print dialog.</span>
+              </div>
+              {printMessage && <p className="result-action-message" role="status">{printMessage}</p>}
+              <header className="result-print-header official-print-heading">
+                <p>Metropolitan University · Smart University Portal</p>
+                <h1>Academic Result</h1>
+                <p>Official result imported from a university-provided result PDF.</p>
+              </header>
               <div className="official-student-details">
                 <div><span>Student Name</span><strong>{officialResult.student.name}</strong></div>
                 <div><span>Student ID</span><strong>{officialResult.student.studentId}</strong></div>
@@ -1948,9 +2084,27 @@ function OfficialUniversityResult() {
                   </div>
                 ))}
               </div>
+              <table className="official-result-print-table">
+                <thead>
+                  <tr><th>Semester</th><th>Course code</th><th>Course</th><th>Credits</th><th>Marks</th><th>Grade</th><th>Grade point</th></tr>
+                </thead>
+                <tbody>
+                  {officialResult.records.map((record, index) => (
+                    <tr key={`print-${record.courseCode || record.courseTitle}-${record.semester}-${index}`}>
+                      <td>{[record.semester, record.academicYear].filter(Boolean).join(" · ") || "—"}</td>
+                      <td>{record.courseCode || "—"}</td>
+                      <td>{record.courseTitle || "—"}</td>
+                      <td>{record.credits}</td>
+                      <td>{record.marks ?? "—"}</td>
+                      <td>{record.grade}</td>
+                      <td>{Number(record.gradePoint).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
               <div className="official-result-summary">
-                <div><span>GPA</span><strong>{officialResult.summary.gpa === null ? "—" : Number(officialResult.summary.gpa).toFixed(2)}</strong></div>
-                <div><span>CGPA</span><strong>{officialResult.summary.cgpa === null ? "—" : Number(officialResult.summary.cgpa).toFixed(2)}</strong></div>
+                <div><span>{officialResult.summary.gpaSource === "university" ? "University-reported GPA" : officialResult.summary.gpaSource === "calculated" ? "GPA calculated from result" : "GPA not available"}</span><strong>{officialResult.summary.gpa === null ? "—" : Number(officialResult.summary.gpa).toFixed(2)}</strong></div>
+                <div><span>{officialResult.summary.cgpaSource === "university" ? "University-reported CGPA" : officialResult.summary.cgpaSource === "calculated" ? "CGPA calculated from result" : "CGPA not available"}</span><strong>{officialResult.summary.cgpa === null ? "—" : Number(officialResult.summary.cgpa).toFixed(2)}</strong></div>
                 <div><span>Quality Points</span><strong>{Number(officialResult.summary.totalQualityPoints).toFixed(2)}</strong></div>
                 <div><span>Attempted Credits</span><strong>{Number(officialResult.summary.totalAttemptedCredits).toFixed(2)}</strong></div>
               </div>
@@ -1965,12 +2119,16 @@ function OfficialUniversityResult() {
                   ))}
                 </div>
               )}
-              <p className="official-result-source">{officialResult.source.label}</p>
+              <p className="official-result-source">
+                Source: {officialResult.source.label}
+                {officialResult.source.uploadedAt && ` · Uploaded ${new Date(officialResult.source.uploadedAt).toLocaleDateString()}`}
+              </p>
+              <p className="result-print-date">Generated {officialPrintDate}</p>
             </>
           ) : (
             <p className="official-result-message">{message || officialResult?.message || "Your result was not found in the currently uploaded university result document."}</p>
           )}
-        </>
+        </div>
       )}
     </section>
   );

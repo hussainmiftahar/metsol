@@ -441,6 +441,8 @@ app.get('/api/results/official', auth, roles('STUDENT'), async (req, res) => {
     summary: {
       gpa: summaryGpa,
       cgpa: summaryCgpa,
+      gpaSource: summaryGpa === null ? null : providedGpa !== null ? 'university' : 'calculated',
+      cgpaSource: summaryCgpa === null ? null : providedCgpa !== null ? 'university' : 'calculated',
       totalQualityPoints: resultSummary.totalQualityPoints,
       totalAttemptedCredits: resultSummary.attemptedCredits,
     },
