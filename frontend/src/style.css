@@ -2930,3 +2930,610 @@
     padding: 28px 22px;
   }
 }
+
+.results-page {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.results-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 30px;
+  border: 1px solid #dce8f8;
+  border-radius: 20px;
+  background: linear-gradient(115deg, #eff6ff 0%, #ffffff 72%);
+}
+
+.results-hero-copy {
+  max-width: 680px;
+}
+
+.results-eyebrow {
+  display: block;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.results-hero h2 {
+  margin-top: 8px;
+  color: #16243a;
+  font-size: clamp(24px, 4vw, 32px);
+  letter-spacing: -0.035em;
+}
+
+.results-hero-copy > p {
+  max-width: 570px;
+  margin-top: 8px;
+  color: #66758b;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.results-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.results-section-nav a {
+  padding: 8px 11px;
+  border: 1px solid #dbe5f1;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #344054;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.results-section-nav a:hover {
+  border-color: #93b4ef;
+  color: #1d4ed8;
+}
+
+.results-section-nav a:focus-visible,
+.results-page button:focus-visible,
+.results-page input:focus-visible,
+.results-page select:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+}
+
+.results-student-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  max-width: 330px;
+  padding: 14px 16px;
+  border: 1px solid #e3eaf3;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(27, 55, 92, 0.05);
+}
+
+.results-student-avatar {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: #eaf1ff;
+  color: #1d4ed8;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.results-student-card strong,
+.results-student-card div > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.results-student-card strong {
+  color: #1d2939;
+  font-size: 12px;
+}
+
+.results-student-card div > span {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 10px;
+}
+
+.results-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.result-overview-card {
+  min-width: 0;
+  min-height: 132px;
+  padding: 18px;
+  border: 1px solid #e6ebf2;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(16, 24, 40, 0.035);
+}
+
+.result-overview-card > span,
+.result-overview-card > strong,
+.result-overview-card > small {
+  display: block;
+}
+
+.result-overview-card > span {
+  color: #667085;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.result-overview-card > strong {
+  margin-top: 10px;
+  color: #1d2939;
+  font-size: 26px;
+  letter-spacing: -0.03em;
+}
+
+.result-overview-card > strong.result-status-value {
+  font-size: 19px;
+  letter-spacing: 0;
+}
+
+.result-overview-card > small {
+  margin-top: 7px;
+  color: #8b95a5;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.official-result-card,
+.calculator-card {
+  scroll-margin-top: 20px;
+}
+
+.official-result-print-sheet {
+  min-width: 0;
+}
+
+.official-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.official-result-actions > span {
+  color: #667085;
+  font-size: 10px;
+}
+
+.official-print-heading,
+.calculator-print-sheet,
+.official-result-print-table {
+  display: none;
+}
+
+.result-calculator-header {
+  align-items: flex-start;
+}
+
+.result-calculator-header h3 {
+  margin-top: 5px;
+}
+
+.result-calculator-header .card-header span:not(.results-eyebrow) {
+  max-width: 680px;
+  line-height: 1.6;
+}
+
+.calculator-table-row {
+  grid-template-columns: minmax(120px, 1.3fr) 110px 120px 90px 110px 90px 36px;
+}
+
+.calculator-table-row .calculator-value {
+  min-width: 0;
+}
+
+.calculator-value[data-label]::before {
+  display: none;
+}
+
+.remove-row-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.calculator-empty-state,
+.calculator-result-notice {
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.calculator-result-notice {
+  margin: -7px 0 14px;
+  color: #1d4ed8;
+}
+
+.result-action-message {
+  margin-top: 10px;
+  color: #1d4ed8;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.dark .results-hero {
+  border-color: #263244;
+  background: linear-gradient(115deg, #111c32 0%, #111827 72%);
+}
+
+.dark .results-hero h2,
+.dark .results-student-card strong,
+.dark .result-overview-card > strong {
+  color: #e5edf5;
+}
+
+.dark .results-hero-copy > p,
+.dark .results-student-card div > span,
+.dark .result-overview-card > span,
+.dark .result-overview-card > small,
+.dark .official-result-actions > span,
+.dark .calculator-empty-state {
+  color: #9eb0c2;
+}
+
+.dark .results-section-nav a,
+.dark .results-student-card,
+.dark .result-overview-card {
+  border-color: #263244;
+  background: #111827;
+  color: #dbe7f3;
+}
+
+.dark .results-student-avatar {
+  background: #1e3a5f;
+  color: #bfdbfe;
+}
+
+.dark .calculator-result-notice,
+.dark .result-action-message {
+  color: #93c5fd;
+}
+
+@media (max-width: 1000px) {
+  .results-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 750px) {
+  .results-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 22px;
+  }
+
+  .results-student-card {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 500px) {
+  .results-page {
+    gap: 14px;
+  }
+
+  .results-overview {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+
+  .result-overview-card {
+    min-height: 116px;
+    padding: 13px;
+  }
+
+  .result-overview-card > strong {
+    font-size: 22px;
+  }
+
+  .result-overview-card > strong.result-status-value {
+    font-size: 16px;
+  }
+
+  .results-hero {
+    padding: 18px;
+  }
+
+  .results-section-nav a {
+    font-size: 10px;
+  }
+
+  .calculator-table-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e8edf3;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  .calculator-table-row input:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .calculator-table-row .calculator-value {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .calculator-value[data-label]::before {
+    display: block;
+    color: #667085;
+    content: attr(data-label);
+    font-size: 9px;
+    font-weight: 500;
+  }
+
+  .calc-btn-stack {
+    width: 100%;
+  }
+
+  .calc-btn-stack button {
+    flex: 1 1 auto;
+  }
+
+  .official-result-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  html,
+  body {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    background: #fff !important;
+    color: #111827 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body.printing-result * {
+    visibility: hidden !important;
+  }
+
+  body.printing-result [data-print-active="true"],
+  body.printing-result [data-print-active="true"] * {
+    visibility: visible !important;
+  }
+
+  body.printing-result [data-print-active="true"] {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+  }
+
+  body.printing-result .official-result-actions,
+  body.printing-result .result-action-message,
+  body.printing-result .card-header {
+    display: none !important;
+  }
+
+  body.printing-result .official-print-heading,
+  body.printing-result .calculator-print-sheet {
+    display: block !important;
+  }
+
+  body.printing-result .result-print-header {
+    margin-bottom: 18pt;
+    padding-bottom: 12pt;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  body.printing-result .result-print-header p {
+    margin: 0 0 4pt;
+    color: #475569 !important;
+    font-size: 9pt;
+  }
+
+  body.printing-result .result-print-header h1 {
+    margin: 8pt 0 5pt;
+    color: #0f172a !important;
+    font-size: 20pt;
+  }
+
+  body.printing-result .result-print-student,
+  body.printing-result .official-student-details {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8pt;
+    margin: 0 0 14pt;
+  }
+
+  body.printing-result .result-print-student p,
+  body.printing-result .official-student-details > div {
+    padding: 7pt;
+    border: 1px solid #dbe2ea !important;
+    border-radius: 0;
+    background: #fff !important;
+    color: #111827 !important;
+    font-size: 9pt;
+  }
+
+  body.printing-result .official-student-details span,
+  body.printing-result .official-result-summary span {
+    color: #475569 !important;
+    font-size: 8pt;
+  }
+
+  body.printing-result .official-student-details strong {
+    color: #111827 !important;
+    font-size: 9pt;
+  }
+
+  body.printing-result .official-result-table {
+    display: none !important;
+  }
+
+  body.printing-result .official-result-print-table {
+    display: table !important;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    color: #111827 !important;
+    font-size: 8pt;
+  }
+
+  body.printing-result .official-result-print-table th,
+  body.printing-result .official-result-print-table td {
+    padding: 6pt 4pt;
+    border-bottom: 1px solid #cbd5e1;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  body.printing-result .official-result-print-table th {
+    border-bottom: 1px solid #475569;
+    color: #334155 !important;
+    font-weight: 700;
+  }
+
+  body.printing-result .official-result-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.printing-result .official-result-print-table thead {
+    display: table-header-group;
+  }
+
+  body.printing-result .official-result-print-table th:nth-child(1) {
+    width: 15%;
+  }
+
+  body.printing-result .official-result-print-table th:nth-child(2) {
+    width: 13%;
+  }
+
+  body.printing-result .official-result-print-table th:nth-child(3) {
+    width: 29%;
+  }
+
+  body.printing-result .official-result-print-table th:nth-child(4),
+  body.printing-result .official-result-print-table th:nth-child(5) {
+    width: 9%;
+  }
+
+  body.printing-result .official-result-print-table th:nth-child(6) {
+    width: 9%;
+  }
+
+  body.printing-result .official-result-print-table th:nth-child(7) {
+    width: 16%;
+  }
+
+  body.printing-result .official-result-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8pt;
+    margin-top: 14pt;
+  }
+
+  body.printing-result .official-result-summary > div {
+    padding: 8pt;
+    border: 1px solid #dbe2ea !important;
+    background: #fff !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.printing-result .official-result-summary strong {
+    color: #111827 !important;
+    font-size: 12pt;
+  }
+
+  body.printing-result .official-result-source,
+  body.printing-result .official-semester-summaries,
+  body.printing-result .result-print-date,
+  body.printing-result .result-print-summary {
+    color: #334155 !important;
+    font-size: 8pt;
+  }
+
+  body.printing-result .result-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #111827 !important;
+    font-size: 9pt;
+  }
+
+  body.printing-result .result-print-table th,
+  body.printing-result .result-print-table td {
+    padding: 7pt;
+    border: 1px solid #cbd5e1;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  body.printing-result .result-print-table th {
+    background: #f1f5f9 !important;
+    font-weight: 700;
+  }
+
+  body.printing-result .result-print-table thead {
+    display: table-header-group;
+  }
+
+  body.printing-result .result-print-table tr,
+  body.printing-result .official-semester-summaries p {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.printing-result .result-print-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10pt 18pt;
+    margin-top: 14pt;
+  }
+
+  body.printing-result .result-print-summary p {
+    margin: 0;
+  }
+
+  body.printing-result .result-print-date {
+    margin-top: 18pt;
+  }
+}

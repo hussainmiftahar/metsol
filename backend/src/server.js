@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { basename } from 'node:path';
 import { calculateResultSummary, SPECIAL_GRADES } from '../../shared/grading.js';
 import { extractPdfLines, isPdfBuffer, normalizeStudentId, ResultPdfError } from './result-import/pdfParser.js';
@@ -7,12 +7,14 @@ import { parseResultLines } from './result-import/resultParser.js';
 import { getAuthenticatedStudentResultFilter } from './result-import/studentResultMatcher.js';
 import { generateAssistantResponse } from './ai.js';
 import { AiDocumentError, extractAiDocument, MAX_AI_DOCUMENT_BYTES, MAX_AI_DOCUMENT_TEXT } from './aiDocuments.js';
+import { encryptSecret, getConnectionStatusForUser, getGoogleClassroomAuthUrl, getGoogleOAuthClient, disconnectGoogleAccountForUser, syncGoogleClassroomAssignmentsForUser } from './googleClassroom.js';
 import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import multer from 'multer'; import { PrismaClient } from '@prisma/client';
 const app=express(), db=new PrismaClient(); app.use(helmet()); app.use(cors({origin:process.env.FRONTEND_URL||'http://localhost:5173'})); app.use(express.json({limit:'2mb'})); app.use(rateLimit({windowMs:15*60*1000,limit:300}));
 const auth=async(req,res,next)=>{try{const token=(req.headers.authorization||'').replace(/^Bearer /,''); const p=jwt.verify(token,process.env.JWT_SECRET); req.user=await db.user.findUnique({where:{id:p.sub},select:{id:true,name:true,email:true,role:true,studentId:true,department:true}}); if(!req.user)return res.sendStatus(401); next();}catch{return res.sendStatus(401)}};
 const roles=(...r)=>(req,res,next)=>r.includes(req.user?.role)?next():res.status(403).json({error:'You are not authorized to perform this action.'});
 const jwtSecret=process.env.JWT_SECRET;
 if(!jwtSecret||jwtSecret.length<32||jwtSecret.startsWith('replace-this-'))throw new Error('JWT_SECRET must be set to a random string of at least 32 characters. See backend/.env.example.');
+const frontendBaseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
 const resultUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024, files: 1 } }).single('file');
 const aiDocumentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_AI_DOCUMENT_BYTES, files: 1 } }).single('file');
 const handleAiDocumentUpload = (req, res, next) => aiDocumentUpload(req, res, (error) => {
@@ -67,6 +69,111 @@ const resultPdfErrorResponse = (res, error) => {
 };
 
 app.get('/api/health',(_,res)=>res.json({ok:true,service:'Smart University Portal API'}));
+app.get('/api/google/classroom/connect', auth, async (req, res) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    if (!clientId || !clientSecret || !redirectUri) {
+      return res.status(500).json({ error: 'Google Classroom integration is not configured. Add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI to backend/.env.' });
+    }
+    const state = jwt.sign({ sub: req.user.id, purpose: 'google-classroom', iat: Math.floor(Date.now()/1000) }, jwtSecret, { expiresIn: '10m' });
+    res.redirect(getGoogleClassroomAuthUrl(req.user.id, state));
+  } catch (error) {
+    console.error('Google Classroom connect error:', error);
+    return res.status(500).json({ error: 'Unable to start the Google Classroom connection flow.' });
+  }
+});
+app.get('/api/google/classroom/callback', async (req, res) => {
+  const { code, state, error: oauthError } = req.query;
+  if (oauthError) {
+    return res.redirect(`${frontendBaseUrl}?googleClassroom=denied`);
+  }
+  if (!code || !state) {
+    return res.status(400).json({ error: 'Missing Google OAuth callback data.' });
+  }
+  try {
+    const payload = jwt.verify(String(state), jwtSecret);
+    if (payload?.purpose !== 'google-classroom') {
+      return res.status(400).json({ error: 'Invalid Google OAuth state.' });
+    }
+    const oauth2Client = getGoogleOAuthClient();
+    const { tokens } = await oauth2Client.getToken(String(code));
+    if (!tokens.access_token) {
+      throw new Error('Google did not return an access token.');
+    }
+    const googleUserInfo = await oauth2Client.request({ url: 'https://www.googleapis.com/oauth2/v3/userinfo' });
+    const profile = googleUserInfo.data || {};
+    await db.googleAccountConnection.upsert({
+      where: { userId: payload.sub },
+      update: {
+        googleUserId: profile.sub || payload.sub,
+        email: profile.email || '',
+        accessTokenEncrypted: encryptSecret(tokens.access_token),
+        refreshTokenEncrypted: tokens.refresh_token ? encryptSecret(tokens.refresh_token) : undefined,
+        tokenType: tokens.token_type || 'Bearer',
+        scope: tokens.scope || '',
+        expiryDate: tokens.expiry_date ? new Date(Number(tokens.expiry_date)) : null,
+      },
+      create: {
+        userId: payload.sub,
+        googleUserId: profile.sub || payload.sub,
+        email: profile.email || '',
+        accessTokenEncrypted: encryptSecret(tokens.access_token),
+        refreshTokenEncrypted: tokens.refresh_token ? encryptSecret(tokens.refresh_token) : undefined,
+        tokenType: tokens.token_type || 'Bearer',
+        scope: tokens.scope || '',
+        expiryDate: tokens.expiry_date ? new Date(Number(tokens.expiry_date)) : null,
+      },
+    });
+    return res.redirect(`${frontendBaseUrl}?googleClassroom=connected`);
+  } catch (error) {
+    console.error('Google Classroom callback error:', error);
+    return res.redirect(`${frontendBaseUrl}?googleClassroom=error`);
+  }
+});
+app.get('/api/google/classroom/status', auth, async (req, res) => {
+  try {
+    const connection = await getConnectionStatusForUser(req.user.id);
+    res.json(connection);
+  } catch (error) {
+    console.error('Google Classroom status error:', error);
+    res.status(500).json({ error: 'Unable to read the Google Classroom connection status.' });
+  }
+});
+app.post('/api/google/classroom/sync', auth, async (req, res) => {
+  try {
+    const assignments = await syncGoogleClassroomAssignmentsForUser(req.user.id);
+    res.json({ connected: assignments.length > 0 || true, assignments });
+  } catch (error) {
+    console.error('Google Classroom sync error:', error);
+    res.status(400).json({ error: error.message || 'Unable to sync Classroom assignments.' });
+  }
+});
+app.post('/api/google/classroom/disconnect', auth, async (req, res) => {
+  try {
+    const disconnected = await disconnectGoogleAccountForUser(req.user.id);
+    if (!disconnected) {
+      return res.status(404).json({ error: 'No Google Classroom account is connected for this user.' });
+    }
+    res.json({ connected: false, message: 'Google Classroom disconnected successfully.' });
+  } catch (error) {
+    console.error('Google Classroom disconnect error:', error);
+    res.status(500).json({ error: 'Unable to disconnect the Google Classroom account.' });
+  }
+});
+app.delete('/api/google/classroom/disconnect', auth, async (req, res) => {
+  try {
+    const disconnected = await disconnectGoogleAccountForUser(req.user.id);
+    if (!disconnected) {
+      return res.status(404).json({ error: 'No Google Classroom account is connected for this user.' });
+    }
+    res.json({ connected: false, message: 'Google Classroom disconnected successfully.' });
+  } catch (error) {
+    console.error('Google Classroom disconnect error:', error);
+    res.status(500).json({ error: 'Unable to disconnect the Google Classroom account.' });
+  }
+});
 app.post('/api/auth/login',async(req,res)=>{
   const {email,password}=req.body||{};
   const normalizedEmail=typeof email==='string'?email.trim().toLowerCase():'';
@@ -390,6 +497,8 @@ app.get('/api/results/official', auth, roles('STUDENT'), async (req, res) => {
     summary: {
       gpa: summaryGpa,
       cgpa: summaryCgpa,
+      gpaSource: summaryGpa === null ? null : providedGpa !== null ? 'university' : 'calculated',
+      cgpaSource: summaryCgpa === null ? null : providedCgpa !== null ? 'university' : 'calculated',
       totalQualityPoints: resultSummary.totalQualityPoints,
       totalAttemptedCredits: resultSummary.attemptedCredits,
     },
@@ -408,4 +517,3 @@ app.get('/api/questions',auth,async(_,res)=>res.json(await db.question.findMany(
 app.get('/api/admin/users',auth,roles('ADMIN'),async(_,res)=>res.json(await db.user.findMany({select:{id:true,name:true,email:true,role:true,department:true,studentId:true}})));
 app.use((err,req,res,next)=>{console.error(err);res.status(500).json({error:'Internal server error'})});
 const port=process.env.PORT||4000; app.listen(port,()=>console.log(`Portal API running on http://localhost:${port}`));
-import { randomUUID } from 'node:crypto';

@@ -52,6 +52,12 @@ The current parser is deliberately conservative: it supports text-based PDFs wit
 
 Student results are fetched using the Student ID attached to the authenticated backend account; the endpoint does not accept a student ID from the browser. Admin upload and import routes enforce the ADMIN role server-side. Run backend tests with `npm test` from `backend`.
 
+### Sample result PDF for testing
+A ready-to-import sample result file is included at `backend/test-data/sample-result.pdf`. Use it to quickly verify the result upload flow in the admin Results screen before testing with a real university PDF.
+
+## Google Classroom integration status
+This branch includes a working backend-and-UI scaffold for Google Classroom connectivity, but the live Google OAuth flow still requires a real Google Cloud OAuth client configuration before it can complete the connection in a browser. The app is structured to keep the existing student portal and JWT auth flow intact while exposing Classroom connect, callback, status, and disconnect routes. The code is intentionally left as a safe integration scaffold until real credentials are added.
+
 ## External integrations
 - AI: Set `GROQ_API_KEY` in backend/.env and optionally `GROQ_MODEL` (defaults to `openai/gpt-oss-20b`). EduAI uses Groq's OpenAI-compatible Responses API. Without a key, the assistant returns a clearly labelled demo response. Students can upload PDF, DOCX, and TXT files up to 10 MB for summaries and document-grounded Q&A. Documents are extracted in backend memory, limited to 30,000 characters and 100 PDF pages, and are not stored by the portal. Extracted text is sent to Groq when answering questions; scanned PDFs require OCR and are not supported.
 - bKash/Nagad: Set merchant credentials and implement/enable the relevant official merchant API credentials and callback URLs. The included payment route creates a PENDING transaction only; it never marks a payment successful without verified gateway confirmation. Never collect or store a user's mobile wallet PIN/OTP.
