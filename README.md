@@ -7,7 +7,7 @@ Modern, multilingual university portal starter for Student, Teacher and Admin ro
 - Backend: Node.js + Express
 - Database: PostgreSQL + Prisma
 - Authentication: JWT + bcrypt
-- AI: OpenAI-compatible API adapter with demo fallback
+- AI: Groq Responses API with demo fallback
 - Mobile payments: bKash/Nagad integration-ready adapter (merchant credentials required)
 
 ## Requirements
@@ -22,7 +22,7 @@ Node.js 20+, npm, PostgreSQL 14+.
    cd backend
    npm ci
    npx prisma generate
-   npx prisma migrate dev --name init
+   npx prisma migrate dev
    npm run seed
    npm run dev
    ```
@@ -45,14 +45,21 @@ Users can also create a student account from the login page with a valid email a
 
 Change demo passwords and JWT_SECRET before deployment.
 
+## University result PDF import
+Administrators can preview and import a university result PDF from the Results page. PDFs are processed in backend memory and are not made public or retained. The same PDF is rejected on repeat import by its SHA-256 hash; a different release is stored as a new historical import, and students see records from the latest imported release only.
+
+The current parser is deliberately conservative: it supports text-based PDFs with a single-row table header containing Student ID, course code or course name, credit, and grade or marks columns, with the Student ID present on each course row. It rejects unknown layouts instead of guessing. Scanned/image-only PDFs require an OCR service and are currently rejected with an explicit message. The actual Metropolitan University result PDF layout has not been supplied for parser validation, so administrators should test a representative PDF before relying on imports.
+
+Student results are fetched using the Student ID attached to the authenticated backend account; the endpoint does not accept a student ID from the browser. Admin upload and import routes enforce the ADMIN role server-side. Run backend tests with `npm test` from `backend`.
+
 ## External integrations
-- AI: Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in backend/.env. Without a key, EduAI returns clearly labelled demo responses.
+- AI: Set `GROQ_API_KEY` in backend/.env and optionally `GROQ_MODEL` (defaults to `openai/gpt-oss-20b`). EduAI uses Groq's OpenAI-compatible Responses API. Without a key, the assistant returns a clearly labelled demo response. Students can upload PDF, DOCX, and TXT files up to 10 MB for summaries and document-grounded Q&A. Documents are extracted in backend memory, limited to 30,000 characters and 100 PDF pages, and are not stored by the portal. Extracted text is sent to Groq when answering questions; scanned PDFs require OCR and are not supported.
 - bKash/Nagad: Set merchant credentials and implement/enable the relevant official merchant API credentials and callback URLs. The included payment route creates a PENDING transaction only; it never marks a payment successful without verified gateway confirmation. Never collect or store a user's mobile wallet PIN/OTP.
 - Live transport: Add GPS tracker/device feed credentials and configure `TRANSPORT_PROVIDER_URL` / `TRANSPORT_API_KEY`. Until configured, the UI shows sample DEMO vehicle locations, not live tracking.
 - Email/SMS/push notifications: configure a provider before production.
 
 ## Included modules
-Dashboard, teacher directory, courses/registration, results/CGPA, class & exam routine, assignments with individual/group cover-page preview and print-to-PDF, attendance, academic calendar, notices, transcript, EduAI, PDF upload/summary/Q&A scaffolding, study hub, question bank, AI question generation, study planner, progress, notifications, transport, hostel/library information, digital student ID, fee/payment history, student helpdesk, teacher workspace and admin management.
+Dashboard, teacher directory, courses/registration, results/CGPA, class & exam routine, assignments with individual/group cover-page preview and print-to-PDF, attendance, academic calendar, notices, transcript, EduAI with document summaries and Q&A, study hub, question bank, AI question generation, study planner, progress, notifications, transport, hostel/library information, digital student ID, fee/payment history, student helpdesk, teacher workspace and admin management.
 
 ## Production checklist
 Configure HTTPS, strong secrets, database backups, rate limiting, CORS allowlist, email verification/password reset, audit logs, gateway signature verification, privacy/retention policy, and real GPS/AI/payment providers. Review authorization rules and institutional requirements before handling real student records.

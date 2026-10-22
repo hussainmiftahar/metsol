@@ -1,8 +1,30 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import Login from "./Login.jsx";
 import { apiFetch, clearAuthToken, getAuthToken } from "./api.js";
+import { calculateResultSummary, getGradeFromScore, getGradePointForGrade, isEarnedCredit, SPECIAL_GRADES } from "../../shared/grading.js";
 import "./style.css";
+
+const GRADE_OPTIONS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "I", "W", "S", "AB"];
+
+const calculateCourseSummary = (course = {}) => {
+  const creditValue = Number(course.credit);
+  const grade = course.grade || "";
+  const gradePoint = getGradePointForGrade(grade);
+  const qualityPoint = Number.isFinite(creditValue) && creditValue > 0 ? gradePoint * creditValue : 0;
+
+  return {
+    grade,
+    gradePoint,
+    qualityPoint,
+    earned: isEarnedCredit(grade),
+    attemptedCredits: Number.isFinite(creditValue) && creditValue > 0 ? creditValue : 0,
+  };
+};
+
+const calculateCourseRowsSummary = (courseRows) => {
+  return calculateResultSummary(courseRows);
+};
 
 const courses = [
   { code: "CSE 310", title: "Artificial Intelligence", teacher: "Dr. Rahman", department: "Department of Computer Science & Engineering", credits: 3, progress: 72 },
@@ -563,6 +585,7 @@ function App() {
 
           <div className="top-actions">
             <button className="icon-button">🔔</button>
+            <button className="auth-toggle-button" onClick={handleLogout}>Sign out</button>
             <div className="top-profile">
               <div className="avatar small">{user.name?.slice(0, 2).toUpperCase() || "U"}</div>
               <div>
@@ -579,7 +602,7 @@ function App() {
         {active === "Assignments" && <Assignments />}
         {active === "Payments" && <Payments />}
         {active === "Attendance" && <Attendance />}
-        {active === "Results" && <Results />}
+        {active === "Results" && <Results key={user.role} />}
         {active === "Notices" && <Notices />}
         {active === "Resources" && <Resources />}
         {active === "Quiz" && <Quiz />}
@@ -1333,16 +1356,95 @@ function Results() {
     ["Software Engineering", "A", "4.00", "3"],
   ];
 
+  const [courseRows, setCourseRows] = useState([
+    { id: 1, name: "Artificial Intelligence", credit: 3, grade: "A+" },
+    { id: 2, name: "Database Management", credit: 3, grade: "A-" },
+  ]);
+  const [scoreInput, setScoreInput] = useState(84);
+  const [courseScoreInputs, setCourseScoreInputs] = useState({
+    midterm: 25,
+    classTest: 18,
+    attendance: 9,
+    finalExam: 32,
+  });
+  const [validationMessage, setValidationMessage] = useState("");
+
+  const summary = calculateCourseRowsSummary(courseRows);
+
+  const updateCourseRow = (id, field, value) => {
+    setCourseRows((previousRows) =>
+      previousRows.map((row) => {
+        if (row.id !== id) return row;
+        const nextRow = { ...row, [field]: value };
+        return nextRow;
+      })
+    );
+
+    setValidationMessage("");
+  };
+
+  const handleCreditChange = (id, value) => {
+    const numericValue = value === "" ? "" : Number(value);
+
+    if (value !== "" && (!Number.isFinite(numericValue) || numericValue <= 0)) {
+      setValidationMessage("Credit hours must be a positive number.");
+      return;
+    }
+
+    updateCourseRow(id, "credit", value);
+  };
+
+  const addCourseRow = () => {
+    setCourseRows((previousRows) => [
+      ...previousRows,
+      { id: Date.now(), name: "", credit: "", grade: "" },
+    ]);
+  };
+
+  const removeCourseRow = (id) => {
+    setCourseRows((previousRows) => {
+      if (previousRows.length === 1) {
+        return previousRows;
+      }
+      return previousRows.filter((row) => row.id !== id);
+    });
+  };
+
+  const scoreResult = (() => {
+    if (scoreInput === "" || scoreInput === null || scoreInput === undefined) return null;
+
+    const numericScore = Number(scoreInput);
+    if (!Number.isFinite(numericScore)) {
+      return { error: "Score must be a number between 0 and 100." };
+    }
+    if (numericScore < 0 || numericScore > 100) {
+      return { error: "Score must be between 0 and 100." };
+    }
+
+    return getGradeFromScore(numericScore);
+  })();
+
+  const courseScoreTotal = Object.values(courseScoreInputs).reduce((sum, value) => sum + Number(value || 0), 0);
+  const courseScoreResult = getGradeFromScore(courseScoreTotal);
+
+  const summaryRows = courseRows.map((row) => {
+    const computed = calculateCourseSummary(row);
+    return {
+      ...row,
+      ...computed,
+    };
+  });
+
   return (
     <>
       <div className="result-summary">
         <div>
           <span>Current CGPA</span>
-          <strong>3.72</strong>
+          <strong>{summary.semesterGpa > 0 ? Number(summary.semesterGpa).toFixed(2) : "0.00"}</strong>
         </div>
         <div>
           <span>Completed Credits</span>
-          <strong>87</strong>
+          <strong>{summary.earnedCredits > 0 ? Number(summary.earnedCredits).toFixed(0) : "0"}</strong>
         </div>
         <div>
           <span>Semester</span>
@@ -1371,7 +1473,436 @@ function Results() {
           ))}
         </div>
       </div>
+
+      <OfficialUniversityResult />
+
+      <div className="card calculator-card">
+        <div className="card-header result-calculator-header">
+          <div>
+            <h3>Result Calculator</h3>
+            <span>Official Metropolitan University grading policy</span>
+          </div>
+        </div>
+
+        <div className="calculator-grid">
+          <div className="calculator-body">
+            <div className="calculator-table">
+              <div className="calculator-table-head">
+                <span>Course Name</span>
+                <span>Credit Hours</span>
+                <span>Grade</span>
+                <span>Grade Point</span>
+                <span>Quality Point</span>
+                <span>Earned Credit</span>
+                <span></span>
+              </div>
+
+              {summaryRows.map((row) => {
+                const computed = calculateCourseSummary(row);
+                const gradePoint = computed.gradePoint;
+                const qualityPoint = computed.qualityPoint;
+                const earned = computed.earned ? "Yes" : "No";
+
+                return (
+                  <div className="calculator-table-row" key={row.id}>
+                    <input
+                      type="text"
+                      value={row.name}
+                      onChange={(event) => updateCourseRow(row.id, "name", event.target.value)}
+                      placeholder="Course name"
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.5"
+                      value={row.credit}
+                      onChange={(event) => handleCreditChange(row.id, event.target.value)}
+                      placeholder="3"
+                    />
+                    <select value={row.grade} onChange={(event) => updateCourseRow(row.id, "grade", event.target.value)}>
+                      <option value="">Select grade</option>
+                      {GRADE_OPTIONS.map((grade) => (
+                        <option key={grade} value={grade}>{grade}</option>
+                      ))}
+                    </select>
+                    <span className="calculator-value">{row.grade ? Number(gradePoint).toFixed(2) : "-"}</span>
+                    <span className="calculator-value">{row.grade && Number(row.credit) > 0 ? Number(qualityPoint).toFixed(2) : "-"}</span>
+                    <span className={`calculator-value ${earned === "Yes" ? "earned" : "not-earned"}`}>
+                      {row.grade ? earned : "-"}
+                    </span>
+                    <button type="button" className="remove-row-button" onClick={() => removeCourseRow(row.id)} aria-label={`Remove ${row.name || "course"}`}>
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {validationMessage && <div className="validation-message">{validationMessage}</div>}
+
+            <div className="calculator-actions">
+              <button type="button" className="primary-button" onClick={addCourseRow}>+ Add Course</button>
+              <div className="calc-btn-stack">
+                <button type="button" className="primary-button" onClick={() => setValidationMessage("")}>Calculate Result</button>
+                <button type="button" className="secondary-button" onClick={() => setCourseRows([{ id: Date.now(), name: "", credit: "", grade: "" }])}>Reset</button>
+              </div>
+            </div>
+
+            <div className="summary-card">
+              <h4>Result Summary</h4>
+              <div className="summary-grid">
+                <div>
+                  <span>Semester GPA</span>
+                  <strong>{Number(summary.semesterGpa).toFixed(2)}</strong>
+                </div>
+                <div>
+                  <span>Total Quality Points</span>
+                  <strong>{Number(summary.totalQualityPoints).toFixed(2)}</strong>
+                </div>
+                <div>
+                  <span>Total Attempted Credits</span>
+                  <strong>{Number(summary.attemptedCredits).toFixed(0)}</strong>
+                </div>
+                <div>
+                  <span>Total Earned Credits</span>
+                  <strong>{Number(summary.earnedCredits).toFixed(0)}</strong>
+                </div>
+                <div>
+                  <span>Number of Courses</span>
+                  <strong>{summary.courseCount}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="calculator-side-panel">
+            <div className="mini-panel">
+              <h4>Marks to Grade</h4>
+              <label>
+                <span>Score</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={scoreInput}
+                  onChange={(event) => setScoreInput(event.target.value)}
+                  placeholder="84"
+                />
+              </label>
+
+              {scoreResult && !scoreResult.error ? (
+                <div className="grade-output">
+                  <div>
+                    <span>Letter Grade</span>
+                    <strong>{scoreResult.grade}</strong>
+                  </div>
+                  <div>
+                    <span>Grade Point</span>
+                    <strong>{Number(scoreResult.gradePoint).toFixed(2)}</strong>
+                  </div>
+                </div>
+              ) : null}
+
+              {scoreResult && scoreResult.error ? (
+                <div className="validation-message">{scoreResult.error}</div>
+              ) : null}
+            </div>
+
+            <div className="mini-panel">
+              <h4>Course Score Calculator</h4>
+              <div className="score-fields">
+                <label>
+                  <span>Mid-term Exam</span>
+                  <input type="number" min="0" max="30" value={courseScoreInputs.midterm} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, midterm: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Class Test</span>
+                  <input type="number" min="0" max="20" value={courseScoreInputs.classTest} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, classTest: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Attendance & Participation</span>
+                  <input type="number" min="0" max="10" value={courseScoreInputs.attendance} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, attendance: event.target.value }))} />
+                </label>
+                <label>
+                  <span>Final Exam</span>
+                  <input type="number" min="0" max="40" value={courseScoreInputs.finalExam} onChange={(event) => setCourseScoreInputs((current) => ({ ...current, finalExam: event.target.value }))} />
+                </label>
+              </div>
+
+              <div className="score-total-box">
+                <span>Total Score</span>
+                <strong>{courseScoreTotal}/100</strong>
+              </div>
+
+              {courseScoreResult && !courseScoreResult.error ? (
+                <div className="grade-output">
+                  <div>
+                    <span>Letter Grade</span>
+                    <strong>{courseScoreResult.grade}</strong>
+                  </div>
+                  <div>
+                    <span>Grade Point</span>
+                    <strong>{Number(courseScoreResult.gradePoint).toFixed(2)}</strong>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
     </>
+  );
+}
+
+function OfficialUniversityResult() {
+  const [accountRole, setAccountRole] = useState("");
+  const [officialResult, setOfficialResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const fileInputRef = useRef(null);
+  const readJsonResponse = (response) => response.json().catch(() => ({}));
+
+  const loadOfficialResult = async (token) => {
+    const response = await fetch("http://localhost:4000/api/results/official", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await readJsonResponse(response);
+    if (!response.ok) throw new Error(data.error || "Unable to load your official result.");
+    setOfficialResult(data);
+  };
+
+  useEffect(() => {
+    let active = true;
+    const loadAccount = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:4000/api/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const user = await readJsonResponse(response);
+        if (!response.ok) throw new Error(user.error || "Sign in to view your official result.");
+        if (!active) return;
+        setAccountRole(user.role || "");
+        if (user.role === "STUDENT") {
+          await loadOfficialResult(token);
+        }
+      } catch (error) {
+        if (active) setMessage(error.message || "Unable to connect to the result service.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    loadAccount();
+    return () => { active = false; };
+  }, []);
+
+  const sendPdf = (endpoint, file) => new Promise((resolve, reject) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      reject(new Error("Sign in with an administrator account to upload result documents."));
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    const request = new XMLHttpRequest();
+    request.open("POST", `http://localhost:4000${endpoint}`);
+    request.setRequestHeader("Authorization", `Bearer ${token}`);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    request.onerror = () => reject(new Error("Unable to connect to the result service."));
+    request.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(request.responseText);
+      } catch {
+        reject(new Error(request.status === 401
+          ? "Sign in before requesting result documents."
+          : request.status === 403
+            ? "You are not authorized to import result documents."
+            : "The result service returned an unreadable response."));
+        return;
+      }
+      if (request.status < 200 || request.status >= 300) {
+        reject(new Error(data.error || "The result PDF could not be processed."));
+        return;
+      }
+      resolve(data);
+    };
+    request.send(formData);
+  });
+
+  const handlePreview = async () => {
+    if (!selectedFile) {
+      setMessage("Choose a university result PDF first.");
+      return;
+    }
+    if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
+      setMessage("Choose a file with the .pdf extension.");
+      return;
+    }
+
+    setUploadBusy(true);
+    setUploadProgress(0);
+    setMessage("");
+    setPreview(null);
+    try {
+      setPreview(await sendPdf("/api/admin/results/import/preview", selectedFile));
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!selectedFile || !preview || preview.duplicate) return;
+    setUploadBusy(true);
+    setUploadProgress(0);
+    setMessage("");
+    try {
+      const result = await sendPdf("/api/admin/results/import", selectedFile);
+      setMessage(result.message);
+      setPreview(null);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setUploadBusy(false);
+    }
+  };
+
+  const cancelPreview = () => {
+    setPreview(null);
+    setSelectedFile(null);
+    setMessage("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  return (
+    <section className="card official-result-card">
+      {accountRole === "ADMIN" ? (
+        <>
+          <div className="card-header">
+            <div>
+              <h3>Upload University Result PDF</h3>
+              <span>Admin-only import · PDF files up to 15 MB</span>
+            </div>
+          </div>
+          <div className="result-upload-controls">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(event) => {
+                setSelectedFile(event.target.files?.[0] ?? null);
+                setPreview(null);
+                setMessage("");
+              }}
+              disabled={uploadBusy}
+            />
+            <button type="button" className="primary-button" onClick={handlePreview} disabled={uploadBusy || !selectedFile}>
+              {uploadBusy ? "Processing..." : "Preview PDF"}
+            </button>
+          </div>
+          {uploadBusy && (
+            <div className="result-upload-progress" aria-live="polite">
+              <progress max="100" value={uploadProgress} />
+              <span>{uploadProgress}% uploaded</span>
+            </div>
+          )}
+          {preview && (
+            <div className="result-import-preview">
+              <h4>Import Preview</h4>
+              <dl>
+                <div><dt>File</dt><dd>{preview.fileName}</dd></div>
+                <div><dt>Students detected</dt><dd>{preview.studentCount.toLocaleString()}</dd></div>
+                <div><dt>Result records</dt><dd>{preview.recordCount.toLocaleString()}</dd></div>
+                <div><dt>Status</dt><dd>{preview.duplicate ? "Already imported" : "Parsed successfully"}</dd></div>
+              </dl>
+              <div className="result-import-actions">
+                <button type="button" className="primary-button" onClick={handleImport} disabled={uploadBusy || preview.duplicate}>
+                  Import Results
+                </button>
+                <button type="button" className="secondary-button" onClick={cancelPreview} disabled={uploadBusy}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {message && <p className="result-import-message" role="status">{message}</p>}
+        </>
+      ) : (
+        <>
+          <div className="card-header">
+            <div>
+              <h3>Official University Result</h3>
+              <span>Imported from a university-provided result PDF</span>
+            </div>
+          </div>
+          {loading ? (
+            <p className="official-result-message">Loading your result…</p>
+          ) : accountRole !== "STUDENT" ? (
+            <p className="official-result-message">{message || "Sign in as a student to view your official result."}</p>
+          ) : officialResult?.found ? (
+            <>
+              <div className="official-student-details">
+                <div><span>Student Name</span><strong>{officialResult.student.name}</strong></div>
+                <div><span>Student ID</span><strong>{officialResult.student.studentId}</strong></div>
+                <div><span>Semester</span><strong>{[...new Set(officialResult.records.map((record) => record.semester).filter(Boolean))].join(", ") || "Not specified"}</strong></div>
+              </div>
+              <div className="official-result-table">
+                <div className="official-result-table-head">
+                  <span>Semester</span><span>Course Code</span><span>Course</span><span>Credit</span><span>Marks</span><span>Grade</span><span>Grade Point</span>
+                </div>
+                {officialResult.records.map((record, index) => (
+                  <div className="official-result-table-row" key={`${record.courseCode || record.courseTitle}-${record.semester}-${index}`}>
+                    <span data-label="Semester">{[record.semester, record.academicYear].filter(Boolean).join(" · ") || "—"}</span>
+                    <span data-label="Course Code">{record.courseCode || "—"}</span>
+                    <strong data-label="Course">{record.courseTitle || "—"}</strong>
+                    <span data-label="Credit">{record.credits}</span>
+                    <span data-label="Marks">{record.marks ?? "—"}</span>
+                    <span data-label="Grade">{record.grade}</span>
+                    <span data-label="Grade Point">{Number(record.gradePoint).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="official-result-summary">
+                <div><span>GPA</span><strong>{officialResult.summary.gpa === null ? "—" : Number(officialResult.summary.gpa).toFixed(2)}</strong></div>
+                <div><span>CGPA</span><strong>{officialResult.summary.cgpa === null ? "—" : Number(officialResult.summary.cgpa).toFixed(2)}</strong></div>
+                <div><span>Quality Points</span><strong>{Number(officialResult.summary.totalQualityPoints).toFixed(2)}</strong></div>
+                <div><span>Attempted Credits</span><strong>{Number(officialResult.summary.totalAttemptedCredits).toFixed(2)}</strong></div>
+              </div>
+              {officialResult.semesters.length > 1 && (
+                <div className="official-semester-summaries">
+                  {officialResult.semesters.map((semester, index) => (
+                    <p key={`${semester.semester}-${semester.academicYear}-${index}`}>
+                      {[semester.semester, semester.academicYear].filter(Boolean).join(" · ") || `Term ${index + 1}`}:
+                      {" "}GPA {semester.gpa === null ? "—" : Number(semester.gpa).toFixed(2)}
+                      {semester.cgpa === null ? "" : ` · CGPA ${Number(semester.cgpa).toFixed(2)}`}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <p className="official-result-source">{officialResult.source.label}</p>
+            </>
+          ) : (
+            <p className="official-result-message">{message || officialResult?.message || "Your result was not found in the currently uploaded university result document."}</p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -1579,28 +2110,103 @@ function Bus() {
 }
 
 function Assistant() {
+  const documentInputRef = useRef(null);
   const [messages, setMessages] = useState([
     {
       from: "ai",
       text: "Hello! I'm your Smart University assistant. How can I help you?",
     },
   ]);
-
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedDocument, setUploadedDocument] = useState(null);
+  const [error, setError] = useState("");
 
-  function sendMessage() {
-    if (!input.trim()) return;
+  async function submitPrompt(messageText) {
+    const prompt = messageText.trim();
+    if (!prompt || sending) return;
 
+    setMessages((current) => [...current, { from: "user", text: prompt }]);
+    setInput("");
+    setError("");
+    setSending(true);
+
+    try {
+      const history = [
+        ...messages.slice(1).map((message) => ({
+          role: message.from === "ai" ? "assistant" : "user",
+          content: message.text,
+        })),
+        { role: "user", content: prompt },
+      ].slice(-20);
+      const response = await apiFetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: history,
+          documentText: uploadedDocument?.text || "",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to get an AI response.");
+      }
+      setMessages((current) => [...current, { from: "ai", text: data.answer }]);
+    } catch (requestError) {
+      setError(requestError.message || "Unable to connect to the AI assistant.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function sendMessage(event) {
+    event.preventDefault();
+    return submitPrompt(input);
+  }
+
+  async function uploadDocument(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await apiFetch("/api/ai/document", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to read this document.");
+      }
+
+      setUploadedDocument(data);
+      setMessages([
+        {
+          from: "ai",
+          text: `${data.fileName} is ready. Ask a question, or use one of the options below.${data.truncated ? " The document was long, so only its first section is available to the assistant." : ""}`,
+        },
+      ]);
+    } catch (uploadError) {
+      setError(uploadError.message || "Unable to upload this document.");
+    } finally {
+      setUploading(false);
+      if (documentInputRef.current) documentInputRef.current.value = "";
+    }
+  }
+
+  function clearDocument() {
+    setUploadedDocument(null);
     setMessages([
-      ...messages,
-      { from: "user", text: input },
       {
         from: "ai",
-        text: "This is the frontend prototype. The real AI assistant will be connected to the backend later.",
+        text: "Document removed. You can continue with general questions or upload another file.",
       },
     ]);
-
-    setInput("");
+    setError("");
   }
 
   return (
@@ -1614,23 +2220,59 @@ function Assistant() {
           </div>
         </div>
 
-        <div className="messages">
+        <div className="messages" role="log" aria-live="polite" aria-relevant="additions">
           {messages.map((m, i) => (
             <div className={m.from === "ai" ? "message ai" : "message user"} key={i}>
               {m.text}
             </div>
           ))}
+          {sending && <div className="message ai" role="status">Thinking...</div>}
+          {error && <p className="chat-error" role="alert">{error}</p>}
+          {uploadedDocument && (
+            <div className="chat-quick-prompts">
+              <button type="button" disabled={sending || uploading} onClick={() => submitPrompt("Summarize the uploaded document. Include its main ideas and important details.")}>
+                Summarize document
+              </button>
+              <button type="button" disabled={sending || uploading} onClick={() => submitPrompt("Create five practice questions with answers based on the uploaded document.")}>
+                Create practice questions
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="chat-input">
+        <div className="chat-document-bar">
+          <input
+            ref={documentInputRef}
+            className="chat-file-input"
+            type="file"
+            accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            onChange={uploadDocument}
+          />
+          <div className="chat-document-actions">
+            <button type="button" onClick={() => documentInputRef.current?.click()} disabled={uploading || sending}>
+              {uploading ? "Reading document..." : "Upload PDF or document"}
+            </button>
+            {uploadedDocument && (
+              <span className="chat-document-name">
+                {uploadedDocument.fileName}
+                <button type="button" onClick={clearDocument} disabled={sending || uploading} aria-label="Remove uploaded document">×</button>
+              </span>
+            )}
+          </div>
+          <p>PDF, DOCX, or TXT · up to 10 MB. Text is sent to Groq for answers and is not saved by the portal.</p>
+        </div>
+
+        <form className="chat-input" onSubmit={sendMessage}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Ask about courses, payments, results..."
+            maxLength={5000}
+            disabled={uploading}
+            placeholder={uploadedDocument ? "Ask a question about your document..." : "Ask about courses, payments, results..."}
+            aria-label="Message the AI assistant"
           />
-          <button onClick={sendMessage}>Send</button>
-        </div>
+          <button type="submit" disabled={sending || uploading || !input.trim()}>Send</button>
+        </form>
       </div>
     </div>
   );
