@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { calculateResultSummary, getGradeFromScore, getGradePointForGrade, isEarnedCredit, SPECIAL_GRADES } from "../../shared/grading.js";
 import Login from "./Login.jsx";
-import { apiFetch, apiUrl, clearAuthToken, disconnectGoogleClassroom, getAuthToken, getGoogleClassroomStatus, redirectToGoogleClassroomConnect } from "./api.js";
+import { apiFetch, apiUrl, disconnectGoogleClassroom, getAccessToken, getGoogleClassroomStatus, redirectToGoogleClassroomConnect, signOut } from "./api.js";
 import "./style.css";
 
 const GRADE_OPTIONS = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "D", "F", "I", "W", "S", "AB"];
@@ -494,12 +494,12 @@ function App() {
 
     async function restoreSession() {
       try {
-        if (!getAuthToken()) return;
+        if (!(await getAccessToken())) return;
 
         const response = await apiFetch("/api/me");
         if (!response.ok) {
           if (response.status === 401) {
-            clearAuthToken();
+            await signOut().catch(() => {});
             if (!cancelled) setAuthMessage("Your session expired. Please sign in again.");
             return;
           }
@@ -521,9 +521,9 @@ function App() {
     };
   }, []);
 
-  function handleLogout() {
+  async function handleLogout() {
     try {
-      clearAuthToken();
+      await signOut();
     } catch (error) {
       setAuthMessage(error.message);
     }
@@ -1295,15 +1295,12 @@ function Payments() {
       }
     
       try {
-        const token = getAuthToken();
-    
         const response = await apiFetch(
           "/api/payments/initiate",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
               invoiceId: invoiceId.trim(),
@@ -1897,8 +1894,9 @@ function OfficialUniversityResult({ onOfficialResult }) {
     return () => { active = false; };
   }, []);
 
-  const sendPdf = (endpoint, file) => new Promise((resolve, reject) => {
-    const token = getAuthToken();
+  const sendPdf = async (endpoint, file) => {
+    const token = await getAccessToken();
+    return new Promise((resolve, reject) => {
     if (!token) {
       reject(new Error("Sign in with an administrator account to upload result documents."));
       return;
@@ -1932,7 +1930,8 @@ function OfficialUniversityResult({ onOfficialResult }) {
       resolve(data);
     };
     request.send(formData);
-  });
+    });
+  };
 
   const handlePreview = async () => {
     if (!selectedFile) {

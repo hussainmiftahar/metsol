@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { apiFetch, saveAuthToken } from "./api.js";
+import { apiFetch } from "./api.js";
+import { supabase } from "./supabase.js";
 
 export default function Login({ onLogin, message = "" }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -7,13 +8,14 @@ export default function Login({ onLogin, message = "" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
+    setNotice("");
 
     const normalizedEmail = email.trim();
     if (isRegistering && !name.trim()) {
@@ -35,32 +37,38 @@ export default function Login({ onLogin, message = "" }) {
 
     setIsSubmitting(true);
     try {
-      const response = await apiFetch(isRegistering ? "/api/auth/register" : "/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(isRegistering ? { name: name.trim() } : {}),
+      if (isRegistering) {
+        const { data, error: signUpError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
-        }),
-      });
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("The server returned an unreadable response.");
+          options: { data: { name: name.trim() } },
+        });
+        if (signUpError) throw new Error(signUpError.message);
+        if (!data.session) {
+          // Email confirmation is enabled in Supabase: the user must confirm before signing in.
+          setIsRegistering(false);
+          setPassword("");
+          setConfirmPassword("");
+          setNotice("Account created. Check your email and confirm your address, then sign in.");
+          return;
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
+        if (signInError) throw new Error(signInError.message);
       }
 
+      // The backend verifies the Supabase session and returns the portal profile (role, student ID, ...).
+      const response = await apiFetch("/api/me");
       if (!response.ok) {
-        throw new Error(data.error || "Login failed. Check your email and password.");
+        await supabase.auth.signOut();
+        throw new Error(response.status === 401
+          ? "Sign in failed. Make sure your email address is confirmed."
+          : "The server could not load your profile. Please try again.");
       }
-      if (!data.token || !data.user) {
-        throw new Error("The server returned an invalid login response.");
-      }
-
-      saveAuthToken(data.token, rememberMe);
-      onLogin(data.user);
+      onLogin(await response.json());
     } catch (requestError) {
       setError(
         requestError instanceof TypeError
@@ -80,13 +88,8 @@ export default function Login({ onLogin, message = "" }) {
         <p className="login-subtitle">{isRegistering ? "Create your student account" : "Student Portal"}</p>
 
         {message && <p className="login-message" role="status">{message}</p>}
+        {notice && <p className="login-message" role="status">{notice}</p>}
         {error && <p className="login-error" role="alert">{error}</p>}
-        {!isRegistering && (
-          <p className="login-message">
-            First time here? Enter any valid email and a password with at least 8 characters. Your student account will be created automatically.
-          </p>
-        )}
-
         <form onSubmit={handleSubmit}>
           {isRegistering && (
             <div className="login-field">
@@ -150,14 +153,7 @@ export default function Login({ onLogin, message = "" }) {
           )}
 
           <div className="login-options">
-            <label>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(event) => setRememberMe(event.target.checked)}
-              />
-              Remember me
-            </label>
+            <span />
 
             {!isRegistering && (
               <button
