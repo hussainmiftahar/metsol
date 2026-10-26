@@ -8,9 +8,44 @@ import { getAuthenticatedStudentResultFilter } from './result-import/studentResu
 import { generateAssistantResponse } from './ai.js';
 import { AiDocumentError, extractAiDocument, MAX_AI_DOCUMENT_BYTES, MAX_AI_DOCUMENT_TEXT } from './aiDocuments.js';
 import { encryptSecret, getConnectionStatusForUser, getGoogleClassroomAuthUrl, getGoogleOAuthClient, disconnectGoogleAccountForUser, syncGoogleClassroomAssignmentsForUser } from './googleClassroom.js';
-import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import multer from 'multer'; import { PrismaClient } from '@prisma/client';
+import express from 'express'; import cors from 'cors'; import helmet from 'helmet'; import rateLimit from 'express-rate-limit'; import jwt from 'jsonwebtoken'; import multer from 'multer'; import { PrismaClient } from '@prisma/client'; import { createClient } from '@supabase/supabase-js';
 const app=express(), db=new PrismaClient(); app.use(helmet()); app.use(cors({origin:process.env.FRONTEND_URL||'http://localhost:5173'})); app.use(express.json({limit:'2mb'})); app.use(rateLimit({windowMs:15*60*1000,limit:300}));
-const auth=async(req,res,next)=>{try{const token=(req.headers.authorization||'').replace(/^Bearer /,''); const p=jwt.verify(token,process.env.JWT_SECRET); req.user=await db.user.findUnique({where:{id:p.sub},select:{id:true,name:true,email:true,role:true,studentId:true,department:true}}); if(!req.user)return res.sendStatus(401); next();}catch{return res.sendStatus(401)}};
+const supabaseUrl=process.env.SUPABASE_URL, supabaseAnonKey=process.env.SUPABASE_ANON_KEY;
+if(!supabaseUrl||!supabaseAnonKey)throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be set. See backend/.env.example.');
+const supabase=createClient(supabaseUrl,supabaseAnonKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+const userSelect={id:true,name:true,email:true,role:true,studentId:true,department:true};
+// Maps a verified Supabase Auth user to a portal User row (roles and profile data live in our own table).
+async function findOrCreatePortalUser(authUser){
+  const email=authUser.email.toLowerCase();
+  const byAuthId=await db.user.findUnique({where:{authId:authUser.id},select:userSelect});
+  if(byAuthId)return byAuthId;
+  const existing=await db.user.findFirst({where:{email:{equals:email,mode:'insensitive'}}});
+  if(existing){
+    // Link a pre-existing portal user (e.g. seeded admin) the first time its confirmed email signs in.
+    if(existing.authId&&existing.authId!==authUser.id)return null;
+    return db.user.update({where:{id:existing.id},data:{authId:authUser.id},select:userSelect});
+  }
+  const name=String(authUser.user_metadata?.name||email.split('@')[0]).trim().slice(0,100)||email.split('@')[0];
+  return db.user.create({data:{name,email,authId:authUser.id,role:'STUDENT'},select:userSelect});
+}
+const auth=async(req,res,next)=>{
+  try{
+    const token=(req.headers.authorization||'').replace(/^Bearer /,'');
+    if(!token)return res.sendStatus(401);
+    const {data,error}=await supabase.auth.getUser(token);
+    const authUser=data?.user;
+    // An unconfirmed email must never be linked to an existing portal account.
+    if(error||!authUser?.email||!authUser.email_confirmed_at)return res.sendStatus(401);
+    let user;
+    try{user=await findOrCreatePortalUser(authUser)}
+    catch(e){
+      if(e?.code!=='P2002')throw e;
+      user=await db.user.findUnique({where:{authId:authUser.id},select:userSelect}); // parallel first requests raced
+    }
+    if(!user)return res.sendStatus(401);
+    req.user=user; next();
+  }catch(e){console.error('Auth error:',e?.message||e);return res.sendStatus(401)}
+};
 const roles=(...r)=>(req,res,next)=>r.includes(req.user?.role)?next():res.status(403).json({error:'You are not authorized to perform this action.'});
 const jwtSecret=process.env.JWT_SECRET;
 if(!jwtSecret||jwtSecret.length<32||jwtSecret.startsWith('replace-this-'))throw new Error('JWT_SECRET must be set to a random string of at least 32 characters. See backend/.env.example.');
@@ -172,58 +207,6 @@ app.delete('/api/google/classroom/disconnect', auth, async (req, res) => {
   } catch (error) {
     console.error('Google Classroom disconnect error:', error);
     res.status(500).json({ error: 'Unable to disconnect the Google Classroom account.' });
-  }
-});
-app.post('/api/auth/login',async(req,res)=>{
-  const {email,password}=req.body||{};
-  const normalizedEmail=typeof email==='string'?email.trim().toLowerCase():'';
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)||normalizedEmail.length>320||typeof password!=='string'||!password||password.length>1024)
-    return res.status(400).json({error:'Enter a valid email address and password'});
-  let user=await db.user.findFirst({where:{email:{equals:normalizedEmail,mode:'insensitive'}}});
-  let created=false;
-  if(!user){
-    if(password.length<8)return res.status(400).json({error:'For a new account, choose a password with at least 8 characters'});
-    try {
-      user=await db.user.create({data:{
-        name:normalizedEmail.split('@')[0],
-        email:normalizedEmail,
-        passwordHash:await bcrypt.hash(password,12),
-        role:'STUDENT'
-      }});
-      created=true;
-    } catch(error) {
-      if(error?.code!=='P2002')throw error;
-      user=await db.user.findFirst({where:{email:{equals:normalizedEmail,mode:'insensitive'}}});
-      if(!user||!await bcrypt.compare(password,user.passwordHash))return res.status(401).json({error:'Invalid email or password'});
-    }
-  } else if(!await bcrypt.compare(password,user.passwordHash)) {
-    return res.status(401).json({error:'Invalid email or password'});
-  }
-  const token=jwt.sign({sub:user.id},jwtSecret,{expiresIn:'12h'});
-  res.status(created?201:200).json({token,created,user:{id:user.id,name:user.name,email:user.email,role:user.role,studentId:user.studentId,department:user.department}});
-});
-app.post('/api/auth/register',async(req,res)=>{
-  const {name,email,password}=req.body||{};
-  const normalizedName=typeof name==='string'?name.trim():'';
-  const normalizedEmail=typeof email==='string'?email.trim().toLowerCase():'';
-  if(!normalizedName||normalizedName.length>100||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)||normalizedEmail.length>320)
-    return res.status(400).json({error:'Enter your name and a valid email address'});
-  if(typeof password!=='string'||password.length<8||password.length>1024)
-    return res.status(400).json({error:'Password must be between 8 and 1024 characters'});
-  const existingUser=await db.user.findFirst({where:{email:{equals:normalizedEmail,mode:'insensitive'}}});
-  if(existingUser)return res.status(409).json({error:'An account with this email already exists. Sign in instead.'});
-  try {
-    const user=await db.user.create({data:{
-      name:normalizedName,
-      email:normalizedEmail,
-      passwordHash:await bcrypt.hash(password,12),
-      role:'STUDENT'
-    }});
-    const token=jwt.sign({sub:user.id},jwtSecret,{expiresIn:'12h'});
-    return res.status(201).json({token,user:{id:user.id,name:user.name,email:user.email,role:user.role,studentId:user.studentId,department:user.department}});
-  } catch(error) {
-    if(error?.code==='P2002')return res.status(409).json({error:'An account with this email already exists. Sign in instead.'});
-    throw error;
   }
 });
 app.get('/api/me',auth,(req,res)=>res.json(req.user));
@@ -516,4 +499,7 @@ app.get('/api/resources',auth,async(_,res)=>res.json(await db.resource.findMany(
 app.get('/api/questions',auth,async(_,res)=>res.json(await db.question.findMany({take:100})));
 app.get('/api/admin/users',auth,roles('ADMIN'),async(_,res)=>res.json(await db.user.findMany({select:{id:true,name:true,email:true,role:true,department:true,studentId:true}})));
 app.use((err,req,res,next)=>{console.error(err);res.status(500).json({error:'Internal server error'})});
-const port=process.env.PORT||4000; app.listen(port,()=>console.log(`Portal API running on http://localhost:${port}`));
+const port=process.env.PORT||4000;
+// Vercel runs the exported app itself; only listen when running locally or on a plain Node host.
+if(!process.env.VERCEL)app.listen(port,()=>console.log(`Portal API running on http://localhost:${port}`));
+export default app;
